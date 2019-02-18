@@ -51,7 +51,7 @@ def generate_spike_trains(X_freq, T, T_image = 0.250, delta_T = 0.0001):
 # plot
 # ------------------------------------------------------------------ #
 
-def plot_spiketrain(delta_T, spiketrain_nd, tmin = 0, tmax = None):
+def plot_spiketrain(delta_T, spiketrain_nd, tmin = 0.0, tmax = None):
     """
     Parameters
         ----------
@@ -59,27 +59,32 @@ def plot_spiketrain(delta_T, spiketrain_nd, tmin = 0, tmax = None):
             sampling freq discretization of spike train
 
         spiketrain_nd : numpy.ndarray
-            first dim is neuron id, second is spike
+            first dim spike index, second dim is neuron id
 
-        tmin : int
-            plotrange in ms
+        tmin : float
+            plotrange in s
 
-        tmax : int
-            plotrange in ms
+        tmax : float
+            plotrange in s
     """
 
     fig, ax = plt.subplots()
 
-    t_ms_total = int(spiketrain_nd.shape[1]*delta_T)
+    t_total = np.ceil(spiketrain_nd.shape[0]*delta_T)
 
+    if tmax is None:
+        tmax = t_total
+
+    x_values = np.arange(tmin, tmax, delta_T)
     # neurons_to_plot = range(28*28)[0:-1:20]
-    neurons_to_plot = np.arange(spiketrain_nd.shape[0])
+    neurons_to_plot = np.arange(spiketrain_nd.shape[1])
     for i in neurons_to_plot:
-        ax.scatter(np.arange(a)[X_spikes[:a, i] == 1.0],
-            i*np.ones(np.sum(X_spikes[:a, i] == 1.0)),
+        selection = spiketrain_nd[int(tmin/delta_T):int(tmax/delta_T), i] == 1.0
+        ax.scatter(x_values[selection],
+            i*np.ones(np.sum(selection)),
             s=0.5, c='C1')
 
-        ax.set_xlabel('ms')
+        ax.set_xlabel(r'Time $[s]$')
         ax.set_ylabel(r'Neuron $i$')
 
     return fig, ax
