@@ -36,7 +36,7 @@ class Network:
         self._eta_b = eta_b
 
         if np.isscalar(self._m_k):
-            self._m_k = np.ones(n_outputs) * self._m_k
+            self._m_k = np.ones((n_outputs, 1)) * self._m_k
 
         assert len(self._m_k) == n_outputs, "Length of m_ks does not match number of output neurons"
 

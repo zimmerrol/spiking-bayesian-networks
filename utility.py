@@ -1,7 +1,6 @@
 from tensorflow.keras.datasets import mnist
 import numpy as np
 from matplotlib import pyplot as plt
-from tqdm import tqdm_notebook as tqdm
 
 # ------------------------------------------------------------------ #
 # helper
@@ -43,6 +42,7 @@ def generate_spike_trains(seq, T, T_image = 0.250, delta_T = 0.0001,
 
     n_samples = int(np.ceil(T / T_image))
     sample_steps = int(np.ceil(T_image/delta_T))
+    print(f'Generating spike trains for {n_samples} images')
 
     n_steps = n_samples * sample_steps
 

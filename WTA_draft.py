@@ -2,6 +2,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 import utility as ut
 import network as nt
+from tqdm import tqdm as tqdm
+import plot as pt
 
 # sample spike train plot
 test = np.ones(shape=(100))*0.0
@@ -9,8 +11,9 @@ test = np.vstack((test, np.ones(shape=(100))*1.0) )
 test = test.T
 X_spikes = ut.generate_spike_trains(test, 1000, delta_T=1e-2)
 
-fig, ax = ut.plot_spiketrain(X_spikes, 1e-2, tmax = 1)
-plt.show(block=True)
+# fig, ax = ut.plot_spiketrain(X_spikes, 1e-2, tmax = 1)
+# plt.show(block=True)
+
 
 # mnist
 labels = [2, 4, 8]
@@ -21,24 +24,42 @@ Y = y_test[selection]
 X = X.reshape((len(X), -1)) / 255.0
 X = (X > 0.5).astype(np.float32)
 
-X_spikes = generate_spike_trains(X, 1000, delta_T=1e-2)
+X_spikes = ut.generate_spike_trains(X, 10000, delta_T=1e-2)
 
+n_outputs = 12
+n_inputs = 28*28
+r_net = 12.0
+m_k = 1/n_outputs
 
-net = nt.Network(28*28, 10, 1e-2, 10, 1/10, eta_v=1e-1, eta_b=1e-1*10)
+net = nt.Network(n_inputs, n_outputs, 1e-2, r_net, m_k, eta_v=1e-1, eta_b=1e-1)
 
-for i in ut.tqdm(range(len(X_spikes))):
+# train
+# for i in range(len(X_spikes)):
+for i in tqdm(range(len(X_spikes))):
     net.step(X_spikes[i])
 
-
-net._V
-
-
+# reshape to 28x28 to plot
 weights = net._V.reshape((-1, 28, 28))
 
 
+fig = plt.figure(figsize=(3.5, 2), dpi=300)
 
-for i in range(10):
-    plt.imshow(sigmoid(weights[i]))
+axes = pt.add_axes_as_grid(fig, 2, 6,
+    .5, .5,
+    .1, .1,
+    .1, .1)
+
+for i, ax in enumerate( list(axes.flatten()) ):
+    # disable legends
+    ax.set_yticks([])
+    ax.set_xticks([])
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+
+    # pi_k_i = sigmoid(weight)
+    ax.imshow(ut.sigmoid(weights[i]))
 
 plt.show(block=True)
 
