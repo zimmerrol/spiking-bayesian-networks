@@ -6,7 +6,7 @@ import utility as ut
 # ------------------------------------------------------------------ #
 
 class Network:
-    def __init__(self, n_inputs, n_outputs, delta_t, r_net, m_k, eta_v, eta_b):
+    def __init__(self, n_inputs, n_outputs, delta_t, r_net, m_k, eta_v, eta_b,):
         self._n_inputs = n_inputs
         self._n_outputs = n_outputs
         self._delta_t = delta_t
@@ -14,6 +14,11 @@ class Network:
         self._m_k = m_k
         self._eta_v = eta_v
         self._eta_b = eta_b
+
+        if np.isscalar(self._m_k):
+            self._m_k = np.ones(n_outputs) * self._m_k
+
+        assert len(self._m_k) == n_outputs, "Length of m_ks does not match number of output neurons"
 
         self._V = np.random.normal(scale=1e-3, size=(self._n_outputs, self._n_inputs))
         self._b = np.zeros((self._n_outputs, 1))
