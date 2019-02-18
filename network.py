@@ -1,4 +1,5 @@
 import numpy as np
+import utility as ut
 
 # ------------------------------------------------------------------ #
 # network
@@ -35,7 +36,7 @@ class Network:
         if diff[k]:
             z[k] = 1.0
 
-        self._b += self._delta_t * self._eta_b * (self._r_net * self._m_k - dirac(z - 1))
-        self._V += self._delta_t * self._eta_v * dirac(z - 1) * (inputs.T - sigmoid(self._V))
+        self._b += self._delta_t * self._eta_b * (self._r_net * self._m_k - ut.dirac(z - 1))
+        self._V += self._delta_t * self._eta_v * ut.dirac(z - 1) * (inputs.T - ut.sigmoid(self._V))
 
         return z
