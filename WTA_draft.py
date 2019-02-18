@@ -9,9 +9,9 @@ import plot as pt
 test = np.ones(shape=(100))*0.0
 test = np.vstack((test, np.ones(shape=(100))*1.0) )
 test = test.T
-X_spikes = ut.generate_spike_trains(test, 1000, delta_T=1e-2)
+# X_spikes = ut.generate_spike_trains(test, 1000, delta_T=1e-2)
 
-# fig, ax = ut.plot_spiketrain(X_spikes, 1e-2, tmax = 1)
+# fig, ax = pt.plot_spiketrain(X_spikes, 1e-2, tmax = 1)
 # plt.show(block=True)
 
 
@@ -24,7 +24,7 @@ Y = y_test[selection]
 X = X.reshape((len(X), -1)) / 255.0
 X = (X > 0.5).astype(np.float32)
 
-X_spikes = ut.generate_spike_trains(X, 10000, delta_T=1e-2)
+X_spikes = ut.generate_spike_trains(X, 1000, delta_T=1e-2)
 
 n_outputs = 12
 n_inputs = 28*28
@@ -33,21 +33,11 @@ m_k = 1/n_outputs
 
 net = nt.Network(n_inputs, n_outputs, 1e-2, r_net, m_k, eta_v=1e-1, eta_b=1e-1)
 
-# train
-# for i in range(len(X_spikes)):
-for i in tqdm(range(len(X_spikes))):
-    net.step(X_spikes[i])
 
-# reshape to 28x28 to plot
-weights = net._V.reshape((-1, 28, 28))
-
-
-fig = plt.figure(figsize=(3.5, 2), dpi=300)
-
-axes = pt.add_axes_as_grid(fig, 2, 6,
-    .5, .5,
-    .1, .1,
-    .1, .1)
+plt.ion()
+fig = plt.figure(figsize=(3.5, 1.16), dpi=300)
+# fig, axes = plt.subplots(2, 6)
+axes = pt.add_axes_as_grid(fig, 2, 6, m_xc=0.01, m_yc=0.01)
 
 for i, ax in enumerate( list(axes.flatten()) ):
     # disable legends
@@ -57,14 +47,28 @@ for i, ax in enumerate( list(axes.flatten()) ):
     ax.spines['right'].set_visible(False)
     ax.spines['left'].set_visible(False)
     ax.spines['bottom'].set_visible(False)
+fig.canvas.draw()
+fig.canvas.flush_events()
 
-    # pi_k_i = sigmoid(weight)
-    ax.imshow(ut.sigmoid(weights[i]))
+# train
+# for i in range(len(X_spikes)):
+for i in tqdm(range(len(X_spikes))):
+    # update figure here
+    net.step(X_spikes[i])
 
-plt.show(block=True)
+    # update figures every percent
+    if not i % int(len(X_spikes)/100):
+        # reshape to 28x28 to plot
+        weights = net._V.reshape((-1, 28, 28))
+        for a, ax in enumerate( list(axes.flatten()) ):
+            # pi_k_i = sigmoid(weight)
+            ax.imshow(ut.sigmoid(weights[a]))
+
+        fig.canvas.draw()
+        fig.canvas.flush_events()
 
 
-sigmoid(net._V+5)
+ut.sigmoid(net._V+5)
 
 z = np.zeros((10, 1))
 z[0] = 1

@@ -6,7 +6,7 @@ import utility as ut
 # ------------------------------------------------------------------ #
 
 class Network:
-    def __init__(self, n_inputs, n_outputs, delta_t, r_net, m_k, eta_v, eta_b,):
+    def __init__(self, n_inputs, n_outputs, delta_t, r_net, m_k, eta_v, eta_b):
         """
             Parameters
             ----------
