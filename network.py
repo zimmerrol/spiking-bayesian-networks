@@ -52,10 +52,10 @@ class Network:
 
         z = np.zeros((self._n_outputs, 1))
 
-        # p = softmax(u)
+        # p \propto softmax(u); eq. (4)
         p_z = np.exp(u) / np.sum(np.exp(u)) * self._delta_t * self._r_net
 
-        # sample from softmax distribution
+        # sample from softmax distribution, i.e. choose a single neuron to spike
         sum_p_z = np.cumsum(p_z)
         diff = sum_p_z - np.random.uniform(0, 1, 1) > 0
         k = np.argmax(diff)
