@@ -16,7 +16,7 @@ test = test.T
 
 
 # mnist
-labels = [2, 4, 8]
+labels = [2, 4]
 (x_train, y_train), (x_test, y_test) = ut.mnist.load_data()
 selection = np.any([y_test == label for label in labels], axis=0)
 X = x_test[selection]
@@ -28,10 +28,10 @@ X_spikes = ut.generate_spike_trains(X, 1000, delta_T=1e-2)
 
 n_outputs = 12
 n_inputs = 28*28
-r_net = 12.0
+r_net = .5
 m_k = 1/n_outputs
 
-net = nt.BinaryWTANetwork(n_inputs, n_outputs, 1e-2, r_net, m_k, eta_v=1e-1, eta_b=1e-1)
+net = nt.BinaryWTANetwork(n_inputs, n_outputs, 1e-2, r_net, m_k, eta_v=1e-1, eta_b=1e-0)
 
 
 plt.ion()
