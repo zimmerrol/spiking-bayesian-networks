@@ -17,7 +17,7 @@ def dirac(x):
 def generate_spike_trains(seq, T, T_image = 0.250, delta_T = 0.0001,
     f_0=20.0, f_1=90.0):
     """
-    Parameters
+        Parameters
         ----------
         seq : ~numpy.ndarray
             Image sequence, pixel between 0-1
@@ -62,7 +62,7 @@ def generate_spike_trains(seq, T, T_image = 0.250, delta_T = 0.0001,
 
 def plot_spiketrain(spiketrain_nd, delta_T, tmin = 0.0, tmax = None):
     """
-    Parameters
+        Parameters
         ----------
         spiketrain_nd : numpy.ndarray
             first dim spike index, second dim is neuron id

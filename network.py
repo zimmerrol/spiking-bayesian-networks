@@ -7,6 +7,26 @@ import utility as ut
 
 class Network:
     def __init__(self, n_inputs, n_outputs, delta_t, r_net, m_k, eta_v, eta_b,):
+        """
+            Parameters
+            ----------
+            delta_t : float
+                numeric integration time step size
+
+            r_net : float
+                global target firing rate of the whole network
+
+            m_k :  numpy.ndarray
+                size n_outputs
+                has to sum up to one, propto relative target firing rate of
+                neuron k
+
+            eta_v : float
+                learning rate of v eq (8)
+
+            eta_b : float
+                learing rate of b eq. (7)
+        """
         self._n_inputs = n_inputs
         self._n_outputs = n_outputs
         self._delta_t = delta_t
