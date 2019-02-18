@@ -32,6 +32,7 @@ class BinaryWTANetwork():
             eta_b : float
                 learing rate of b eq. (7)
         """
+
         self._n_inputs = n_inputs
         self._n_outputs = n_outputs
         self._delta_t = delta_t
@@ -74,7 +75,7 @@ class BinaryWTANetwork():
         return z
 
 
-class ContinousWTANetwork():
+class ContinuousWTANetwork():
     """
     Implementation of the (soft) Winner Takes All (WTA) network, assuming Gaussian distributions
     """
@@ -90,20 +91,20 @@ class ContinousWTANetwork():
         self._eta_beta = eta_beta
 
         if np.isscalar(self._m_k):
-            self._m_k = np.ones(n_outputs) * self._m_k
+            self._m_k = np.ones((n_outputs, 1)) * self._m_k
 
         assert len(self._m_k) == n_outputs, "Length of m_ks does not match number of output neurons"
 
         self._V = np.random.normal(scale=1e-3, size=(self._n_outputs, self._n_inputs))
-        self._b = np.zeros((self._n_outputs, 1))
-        self._beta = np.zeros((self._n_inputs, 1))
+        self._b = np.random.normal(scale=1e-3, size=(self._n_outputs, 1))
+        self._beta = np.ones((self._n_inputs, 1))
 
     def step(self, inputs):
         inputs = inputs.reshape((-1, 1))
         assert len(inputs) == self._n_inputs, "Input length does not match"
 
         # u = V * input + b
-        u = np.dot(self._V, inputs) + self._b
+        u = 0.5 * np.dot(self._V, self._beta * inputs) + self._b
 
         z = np.zeros((self._n_outputs, 1))
 
@@ -119,7 +120,7 @@ class ContinousWTANetwork():
             z[k] = 1.0
 
         self._b += self._delta_t * self._eta_b * (self._r_net * self._m_k - ut.dirac(z - 1))
-        self._V += self._delta_t * self._eta_v * ut.dirac(z - 1) * self._beta * (inputs.T - ut.sigmoid(self._V))
-        self._beta += self._delta_t * self._eta_beta * (np.dot(self._V**2, z) + inputs * np.dot(self._V, z) - 0.5*inputs**2 + 1.0/np.sqrt(2*np.pi**self._n_inputs))
+        self._V += self._delta_t * self._eta_v * ut.dirac(z - 1) * self._beta.T * (inputs.T - self._V)
+        self._beta += self._delta_t * self._eta_beta * (np.dot(self._V.T**2, z) + inputs * np.dot(self._V.T, z) - 0.5*inputs**2 + 1.0 / self._beta)
 
         return z
