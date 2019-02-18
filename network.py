@@ -27,15 +27,17 @@ class Network:
         inputs = inputs.reshape((-1, 1))
         assert len(inputs) == self._n_inputs, "Input length does not match"
 
+        # u = V * input + b
         u = np.dot(self._V, inputs) + self._b
 
         z = np.zeros((self._n_outputs, 1))
 
+        # p = softmax(u)
         p_z = np.exp(u) / np.sum(np.exp(u)) * self._delta_t * self._r_net
 
+        # sample from softmax distribution
         sum_p_z = np.cumsum(p_z)
         diff = sum_p_z - np.random.uniform(0, 1, 1) > 0
-
         k = np.argmax(diff)
 
         if diff[k]:
