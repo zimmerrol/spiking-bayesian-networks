@@ -36,11 +36,9 @@ def generate_spike_trains(X_freq, T, T_image = 0.250, delta_T = 0.0001):
     n_steps = n_samples * sample_steps
 
     # generate time dependant image showing rates
-    rates = np.zeros((n_steps, X_freq.shape[1]))
     sample_indices = np.random.randint(0, len(X_freq), size=n_samples)
-    for i, sample_index in enumerate(sample_indices):
-        rates[i*sample_steps:(i+1)*sample_steps] = X_freq[sample_index]
-
+    rates = np.repeat(X_freq[sample_indices], sample_steps, axis=0)
+    
     # now generate the spike trains
     p = np.random.uniform(0.0, 1.0, size=rates.shape)
     y = (rates*delta_T > p).astype(np.float32)
@@ -88,43 +86,3 @@ def plot_spiketrain(delta_T, spiketrain_nd, tmin = 0.0, tmax = None):
         ax.set_ylabel(r'Neuron $i$')
 
     return fig, ax
-
-# ------------------------------------------------------------------ #
-# network
-# ------------------------------------------------------------------ #
-
-class Network:
-    def __init__(self, n_inputs, n_outputs, delta_t, r_net, m_k, eta_v, eta_b):
-        self._n_inputs = n_inputs
-        self._n_outputs = n_outputs
-        self._delta_t = delta_t
-        self._r_net = r_net
-        self._m_k = m_k
-        self._eta_v = eta_v
-        self._eta_b = eta_b
-
-        self._V = np.random.normal(scale=1e-3, size=(self._n_outputs, self._n_inputs))
-        self._b = np.zeros((self._n_outputs, 1))
-
-    def step(self, inputs):
-        inputs = inputs.reshape((-1, 1))
-        assert len(inputs) == self._n_inputs, "Input length does not match"
-
-        u = np.dot(self._V, inputs) + self._b
-
-        z = np.zeros((self._n_outputs, 1))
-
-        p_z = np.exp(u) / np.sum(np.exp(u)) * self._delta_t * self._r_net
-
-        sum_p_z = np.cumsum(p_z)
-        diff = sum_p_z - np.random.uniform(0, 1, 1) > 0
-
-        k = np.argmax(diff)
-
-        if diff[k]:
-            z[k] = 1.0
-
-        self._b += self._delta_t * self._eta_b * (self._r_net * self._m_k - dirac(z - 1))
-        self._V += self._delta_t * self._eta_v * dirac(z - 1) * (inputs.T - sigmoid(self._V))
-
-        return z
