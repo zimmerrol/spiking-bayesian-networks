@@ -31,7 +31,7 @@ n_inputs = 28*28
 r_net = 12.0
 m_k = 1/n_outputs
 
-net = nt.Network(n_inputs, n_outputs, 1e-2, r_net, m_k, eta_v=1e-1, eta_b=1e-1)
+net = nt.BinaryWTANetwork(n_inputs, n_outputs, 1e-2, r_net, m_k, eta_v=1e-1, eta_b=1e-1)
 
 
 plt.ion()
