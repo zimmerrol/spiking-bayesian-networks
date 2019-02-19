@@ -56,7 +56,7 @@ for i in pbar:
         weights = net._V.reshape((-1, 28, 28))
         for i in range(len(imshows)):
             # pi_k_i = sigmoid(weight)
-            imshows[i].set_data(ut.sigmoid(weights[i]))
+            imshows[i].set_data(weights[i])
 
         fig.canvas.draw()
 
