@@ -10,14 +10,20 @@ delta_T = 1e-2
 # mnist
 labels = [0, 1]
 (x_train, y_train), (x_test, y_test) = ut.mnist.load_data()
-selection = np.any([y_test == label for label in labels], axis=0)
+selection = [y_test == label for label in labels]
+
+minimum_length = min(np.sum(selection, axis=1))
+selection = np.any([np.all((item, np.cumsum(item) < minimum_length), axis=0) for item in selection], axis=0)
 X = x_test[selection]
 Y = y_test[selection]
 X = X.reshape((len(X), -1)) / 255.0
 X = (X > 0.5).astype(np.float32)
 X_frequencies = X * 70.0 + 20.0
 
-X_spikes = ut.generate_spike_trains(X_frequencies, 1000, delta_T=delta_T)
+for label in labels:
+    print(sum(Y==label))
+
+X_spikes = ut.generate_spike_trains(X_frequencies, 10000, delta_T=delta_T, batch_size=1)
 
 n_outputs = 12
 n_inputs = 28*28
@@ -42,24 +48,25 @@ for i, ax in enumerate( list(axes.flatten()) ):
     ax.spines['left'].set_visible(False)
     ax.spines['bottom'].set_visible(False)
 
-    imshows.append(ax.imshow(ut.sigmoid(net._V[i].reshape((28, 28))), vmin=0, vmax=1))
+    imshows.append(ax.imshow(ut.sigmoid(net._V[i].reshape((28, 28))), vmin=0.3, vmax=0.7))
 fig.canvas.draw()
 fig.canvas.flush_events()
 
 # train
-pbar = tqdm(range(len(X_spikes)))
-for i in pbar:
+pbar = tqdm(enumerate(X_spikes))
+for batch_index, sample_batch in pbar:
     # update figure here
-    net.step(X_spikes[i])
+    for sample in sample_batch:
+        net.step(sample)
 
     # update figures every percent
-    if not i % int(100 * (0.25 / delta_T)):
-        # reshape to 28x28 to plot
-        weights = net._V.reshape((-1, 28, 28))
-        for i in range(len(imshows)):
-            # pi_k_i = sigmoid(weight)
-            imshows[i].set_data(ut.sigmoid(weights[i]))
+    #if not batch_index % 1:
+    # reshape to 28x28 to plot
+    weights = net._V.reshape((-1, 28, 28))
+    for i in range(len(imshows)):
+        # pi_k_i = sigmoid(weight)
+        imshows[i].set_data(ut.sigmoid(weights[i]))
 
-        fig.canvas.draw()
-    pbar.set_description(f'<|V|> = {np.mean(np.abs(net._V)):.4f}, <|b|> = {np.mean(np.abs(net._b)):.4f}')
+    fig.canvas.draw()
+    pbar.set_description(f'<|V|> = {np.mean(np.abs(net._V)):.4f}, <b> = {np.mean(net._b):.4f}')
     fig.canvas.flush_events()

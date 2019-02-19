@@ -47,8 +47,8 @@ class BinaryWTANetwork():
         assert len(self._m_k) == n_outputs, "Length of m_ks does not match number of output neurons"
 
         self._V = np.random.normal(scale=1e-3, size=(self._n_outputs, self._n_inputs))
-        self._b = np.zeros((self._n_outputs, 1))
-
+        self._b = np.log(self._delta_T * self._m_k * self._r_net)
+        
     def step(self, inputs):
         inputs = inputs.reshape((-1, 1))
         assert len(inputs) == self._n_inputs, "Input length does not match"
@@ -58,18 +58,19 @@ class BinaryWTANetwork():
 
         z = np.zeros((self._n_outputs, 1))
 
-        # p \propto softmax(u); eq. (4)
-        p_z = np.exp(u) / np.sum(np.exp(u) + 1e-8) * self._delta_T * self._r_net
+        # find out if network is spiking
+        if np.random.uniform(0, 1, 1) < self._delta_T * self._r_net:
+            # p = softmax(u)
+            p_z = np.exp(u) / np.sum(np.exp(u) + 1e-8)
 
-        # sample from softmax distribution, i.e. choose a single neuron to spike
-        sum_p_z = np.cumsum(p_z)
-        diff = sum_p_z - np.random.uniform(0, 1, 1) > 0
-        k = np.argmax(diff)
+            # sample from softmax distribution
+            sum_p_z = np.cumsum(p_z)
+            diff = sum_p_z - np.random.uniform(0, 1, 1) > 0
+            k = np.argmax(diff)
 
-        if diff[k]:
             z[k] = 1.0
 
-        self._b += self._delta_T * self._eta_b * (self._r_net * self._m_k - ut.dirac(z - 1))
+        self._b += self._delta_T * self._eta_b * (self._delta_T * self._r_net * self._m_k - ut.dirac(z - 1))
         self._V += self._delta_T * self._eta_v * ut.dirac(z - 1) * (inputs.T - ut.sigmoid(self._V))
 
         return z
@@ -108,18 +109,19 @@ class ContinuousWTANetwork():
 
         z = np.zeros((self._n_outputs, 1))
 
-        # p = softmax(u)
-        p_z = np.exp(u) / np.sum(np.exp(u) + 1e-8) * self._delta_T * self._r_net
+        # find out if network is spiking
+        if np.random.uniform(0, 1, 1) < self._delta_T * self._r_net:
+            # p = softmax(u)
+            p_z = np.exp(u) / np.sum(np.exp(u) + 1e-8)
 
-        # sample from softmax distribution
-        sum_p_z = np.cumsum(p_z)
-        diff = sum_p_z - np.random.uniform(0, 1, 1) > 0
-        k = np.argmax(diff)
+            # sample from softmax distribution
+            sum_p_z = np.cumsum(p_z)
+            diff = sum_p_z - np.random.uniform(0, 1, 1) > 0
+            k = np.argmax(diff)
 
-        if diff[k]:
             z[k] = 1.0
 
-        self._b += self._delta_T * self._eta_b * (self._r_net * self._m_k - ut.dirac(z - 1))
+        self._b += self._delta_T * self._eta_b * (self._delta_T * self._r_net * self._m_k - ut.dirac(z - 1))
         self._V += self._delta_T * self._eta_v * ut.dirac(z - 1) * self._beta.T * (inputs.T - self._V)
         self._beta += self._delta_T * self._eta_beta * (np.dot(self._V.T**2, z) + inputs * np.dot(self._V.T, z) - 0.5*inputs**2 + 1.0 / self._beta)
 
