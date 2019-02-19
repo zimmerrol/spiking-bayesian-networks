@@ -13,7 +13,7 @@ def dirac(x):
     return np.isclose(x, 0).astype(np.float32)
 
 
-def generate_spike_trains(frequencies, T, T_image = 0.250, delta_T = 0.0001):
+def generate_spike_trains(frequencies, T, T_image=0.250, delta_T=1e-2):
     """
         Parameters
         ----------
@@ -35,8 +35,6 @@ def generate_spike_trains(frequencies, T, T_image = 0.250, delta_T = 0.0001):
     n_samples = int(np.ceil(T / T_image))
     sample_steps = int(np.ceil(T_image/delta_T))
     print(f'Generating spike trains for {n_samples} images')
-
-    n_steps = n_samples * sample_steps
 
     # generate time dependant image showing rates
     sample_indices = np.random.randint(0, len(frequencies), size=n_samples)
