@@ -39,7 +39,8 @@ def add_axes_as_grid(fig, rows, cols, m_xl=0, m_yl=0, m_xr=0, m_yr=0, m_xc=0, m_
 # plot
 # ------------------------------------------------------------------ #
 
-def plot_spiketrain(spiketrain_nd, delta_T, tmin = 0.0, tmax = None):
+def plot_spiketrain(spiketrain_nd, delta_T, tmin = 0.0, tmax = None,  ax=None,
+    neurons_to_plot=None, scat=None):
     """
         Parameters
         ----------
@@ -56,23 +57,28 @@ def plot_spiketrain(spiketrain_nd, delta_T, tmin = 0.0, tmax = None):
             plotrange in s
     """
 
-    fig, ax = plt.subplots()
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
 
     t_total = np.ceil(spiketrain_nd.shape[0]*delta_T)
 
     if tmax is None:
         tmax = t_total
 
+    if neurons_to_plot is None:
+        neurons_to_plot = np.arange(spiketrain_nd.shape[1])
+
     x_values = np.arange(tmin, tmax, delta_T)
-    # neurons_to_plot = range(28*28)[0:-1:20]
-    neurons_to_plot = np.arange(spiketrain_nd.shape[1])
+
     for i in neurons_to_plot:
         selection = spiketrain_nd[int(tmin/delta_T):int(tmax/delta_T), i] == 1.0
-        ax.scatter(x_values[selection],
+        scat = ax.scatter(x_values[selection],
             i*np.ones(np.sum(selection)),
-            s=0.5, c='C1')
+            s=0.5, c='C1', linewidths=.1, marker="_")
 
         ax.set_xlabel(r'Time $[s]$')
         ax.set_ylabel(r'Neuron $i$')
 
-    return fig, ax
+    return fig, ax, scat

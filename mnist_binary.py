@@ -21,7 +21,7 @@ X_spikes = ut.generate_spike_trains(X_frequencies, 1000, delta_T=delta_T)
 
 n_outputs = 12
 n_inputs = 28*28
-r_net = 20.0 # 0.5
+r_net = 50.0 # 0.5
 m_k = 1.0/n_outputs
 
 net = nt.BinaryWTANetwork(n_inputs=n_inputs, n_outputs=n_outputs,
@@ -31,6 +31,13 @@ fig = plt.figure(figsize=(3.5, 1.16), dpi=300)
 plt.show(block=False)
 # fig, axes = plt.subplots(2, 6)
 axes = pt.add_axes_as_grid(fig, 2, 6, m_xc=0.01, m_yc=0.01)
+
+
+hist_len = 10 # in seconds
+output_history = np.zeros((int(hist_len/delta_T), n_outputs))
+input_history = np.zeros((int(hist_len/delta_T), n_inputs))
+z_hist = np.zeros((int(hist_len/delta_T), n_outputs))
+
 
 imshows = []
 for i, ax in enumerate( list(axes.flatten()) ):
@@ -42,18 +49,32 @@ for i, ax in enumerate( list(axes.flatten()) ):
     ax.spines['left'].set_visible(False)
     ax.spines['bottom'].set_visible(False)
 
-    imshows.append(ax.imshow(ut.sigmoid(net._V[i].reshape((28, 28))), vmin=0, vmax=1))
+    imshows.append(ax.imshow(ut.sigmoid(net._V[i].reshape((28, 28))), vmin=0.3, vmax=.7))
 fig.canvas.draw()
 fig.canvas.flush_events()
+
+# X_spikes = X_spikes[0:1001]
 
 # train
 pbar = tqdm(range(len(X_spikes)))
 for i in pbar:
-    # update figure here
-    net.step(X_spikes[i])
+# for i, foo in enumerate(range(len(X_spikes))):
+    z = net.step(X_spikes[i])[:,0]
+    if i >= len(X_spikes) - int(hist_len/delta_T):
+        # input_history = np.roll(input_history, shift=-1, axis=0)
+        # output_history = np.roll(output_history, shift=-1, axis=0)
+        # input_history[-1, :] = X_spikes[i]
+        # output_history[-1, :] = net.step(X_spikes[i])[:,0]
+
+        input_history[i-len(X_spikes) + int(hist_len/delta_T), :] = X_spikes[i]
+        output_history[i-len(X_spikes) + int(hist_len/delta_T), :] = z
+    else:
+        z_hist = np.roll(z_hist, shift=-1, axis=0)
+        z_hist[-1, : ] = z
+        z_avg = np.mean(z_hist, axis=0)
 
     # update figures every percent
-    if not i % int(100 * (0.25 / delta_T)):
+    if not i % int(5 * len(X_spikes)/100):
         # reshape to 28x28 to plot
         weights = net._V.reshape((-1, 28, 28))
         for i in range(len(imshows)):
@@ -61,5 +82,15 @@ for i in pbar:
             imshows[i].set_data(ut.sigmoid(weights[i]))
 
         fig.canvas.draw()
-    pbar.set_description(f'<|V|> = {np.mean(np.abs(net._V)):.4f}, <|b|> = {np.mean(np.abs(net._b)):.4f}')
+
+    out = ''
+    for i in z_avg:
+        out += f'{i:.3f} '
+
+    pbar.set_description(out)
+    # pbar.set_description(f'<|V|> = {np.mean(np.abs(net._V)):.4f}, <|b|> = {np.mean(np.abs(net._b)):.4f}')
+
     fig.canvas.flush_events()
+
+pt.plot_spiketrain(input_history, delta_T, neurons_to_plot=range(28*28)[0:-1:70])
+pt.plot_spiketrain(output_history, delta_T)
