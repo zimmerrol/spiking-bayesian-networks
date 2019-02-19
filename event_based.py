@@ -56,6 +56,31 @@ def get_input_at_time(t):
 
 
 
+def init_z_plot(net):
+    assert net._history_duration > 0, "need a history to plot"
+    fig, ax = plt.subplots()
+    ax = plt.axes(xlim=(-net._history_duration, 0),
+        ylim=(-.5, net._n_outputs-.5))
+    scat = ax.scatter([], [], s=10)
+
+    return fig, ax, scat
+
+def plot_z_history(net, scat):
+    # print(list(zip(t_hist, z_hist)))
+    dat = np.array(list(zip(net._t_hist, net._z_hist)))
+    dat[:,0] = dat[:,0] - current_time
+    print(dat)
+    # dat = np.array(net._t_hist)-net._history_duration
+    # dat = np.hstack((dat, np.array(net._z_hist)))
+    # print(dat.shape)
+    # exit()
+    # dat = np.array(list(zip(net._t_hist, net._z_hist)))
+    scat.set_offsets(dat)
+    return scat,
+
+
+
+
 class EventBinaryWTANetwork():
     """
 
@@ -177,6 +202,10 @@ def update_steps(steps=1000, imshows=None, fig=None):
                 fig.canvas.draw()
                 fig.canvas.flush_events()
 
+                plot_z_history(net, scat_hist)
+                fig_hist.canvas.draw()
+                fig_hist.canvas.flush_events()
+
                 out = ''
                 for i in net._z_spikes:
                     out += f'{i/current_time:.3f} '
@@ -195,7 +224,7 @@ if __name__ == '__main__':
     get_input_at_time(0)
     net = EventBinaryWTANetwork(n_inputs=n_inputs, n_outputs=n_outputs,
         delta_T=delta_T, r_net=r_net, m_k=m_k, eta_v=1e-1, eta_b=1e-0,
-        history_duration=1)
+        history_duration=10)
 
     # weight figures
     fig = plt.figure(figsize=(3.5, 1.16), dpi=300)
@@ -215,6 +244,8 @@ if __name__ == '__main__':
             vmin=0.3, vmax=.7))
     fig.canvas.draw()
     fig.canvas.flush_events()
+
+    fig_hist, ax_hist, scat_hist = init_z_plot(net)
 
     update_steps(int(1e5), imshows, fig)
 
