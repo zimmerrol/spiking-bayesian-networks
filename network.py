@@ -15,7 +15,7 @@ class BinaryWTANetwork():
         """
             Parameters
             ----------
-            delta_t : float
+            delta_T : float
                 numeric integration time step size
 
             r_net : float
@@ -35,7 +35,7 @@ class BinaryWTANetwork():
 
         self._n_inputs = n_inputs
         self._n_outputs = n_outputs
-        self._delta_t = delta_t
+        self._delta_T = delta_T
         self._r_net = r_net
         self._m_k = m_k
         self._eta_v = eta_v
@@ -59,7 +59,7 @@ class BinaryWTANetwork():
         z = np.zeros((self._n_outputs, 1))
 
         # p \propto softmax(u); eq. (4)
-        p_z = np.exp(u) / np.sum(np.exp(u) + 1e-8) * self._delta_t * self._r_net
+        p_z = np.exp(u) / np.sum(np.exp(u) + 1e-8) * self._delta_T * self._r_net
 
         # sample from softmax distribution, i.e. choose a single neuron to spike
         sum_p_z = np.cumsum(p_z)
@@ -69,8 +69,8 @@ class BinaryWTANetwork():
         if diff[k]:
             z[k] = 1.0
 
-        self._b += self._delta_t * self._eta_b * (self._r_net * self._m_k - ut.dirac(z - 1))
-        self._V += self._delta_t * self._eta_v * ut.dirac(z - 1) * (inputs.T - ut.sigmoid(self._V))
+        self._b += self._delta_T * self._eta_b * (self._r_net * self._m_k - ut.dirac(z - 1))
+        self._V += self._delta_T * self._eta_v * ut.dirac(z - 1) * (inputs.T - ut.sigmoid(self._V))
 
         return z
 
@@ -83,7 +83,7 @@ class ContinuousWTANetwork():
     def __init__(self, n_inputs, n_outputs, delta_T, r_net, m_k, eta_v, eta_b, eta_beta):
         self._n_inputs = n_inputs
         self._n_outputs = n_outputs
-        self._delta_t = delta_t
+        self._delta_T = delta_T
         self._r_net = r_net
         self._m_k = m_k
         self._eta_v = eta_v
@@ -109,7 +109,7 @@ class ContinuousWTANetwork():
         z = np.zeros((self._n_outputs, 1))
 
         # p = softmax(u)
-        p_z = np.exp(u) / np.sum(np.exp(u) + 1e-8) * self._delta_t * self._r_net
+        p_z = np.exp(u) / np.sum(np.exp(u) + 1e-8) * self._delta_T * self._r_net
 
         # sample from softmax distribution
         sum_p_z = np.cumsum(p_z)
@@ -119,8 +119,8 @@ class ContinuousWTANetwork():
         if diff[k]:
             z[k] = 1.0
 
-        self._b += self._delta_t * self._eta_b * (self._r_net * self._m_k - ut.dirac(z - 1))
-        self._V += self._delta_t * self._eta_v * ut.dirac(z - 1) * self._beta.T * (inputs.T - self._V)
-        self._beta += self._delta_t * self._eta_beta * (np.dot(self._V.T**2, z) + inputs * np.dot(self._V.T, z) - 0.5*inputs**2 + 1.0 / self._beta)
+        self._b += self._delta_T * self._eta_b * (self._r_net * self._m_k - ut.dirac(z - 1))
+        self._V += self._delta_T * self._eta_v * ut.dirac(z - 1) * self._beta.T * (inputs.T - self._V)
+        self._beta += self._delta_T * self._eta_beta * (np.dot(self._V.T**2, z) + inputs * np.dot(self._V.T, z) - 0.5*inputs**2 + 1.0 / self._beta)
 
         return z
