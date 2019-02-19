@@ -45,10 +45,11 @@ fig.canvas.draw()
 fig.canvas.flush_events()
 
 # train
-pbar = tqdm(range(len(X_spikes)))
-for i in pbar:
+pbar = tqdm(enumerate(X_spikes))
+for batch_index, batch in pbar:
     # update figure here
-    net.step(X_spikes[i])
+    for sample in batch:
+        net.step(sample)
 
     # update figures every percent
     if not i % int(5 * len(X_spikes)/100):
