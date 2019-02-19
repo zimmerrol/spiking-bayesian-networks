@@ -11,7 +11,7 @@ class BinaryWTANetwork():
     Implementation of the (soft) Winner Takes All (WTA) network, assuming Bernoulli distributions
     """
 
-    def __init__(self, n_inputs, n_outputs, delta_t, r_net, m_k, eta_v, eta_b):
+    def __init__(self, n_inputs, n_outputs, delta_T, r_net, m_k, eta_v, eta_b):
         """
             Parameters
             ----------
@@ -80,7 +80,7 @@ class ContinuousWTANetwork():
     Implementation of the (soft) Winner Takes All (WTA) network, assuming Gaussian distributions
     """
 
-    def __init__(self, n_inputs, n_outputs, delta_t, r_net, m_k, eta_v, eta_b, eta_beta):
+    def __init__(self, n_inputs, n_outputs, delta_T, r_net, m_k, eta_v, eta_b, eta_beta):
         self._n_inputs = n_inputs
         self._n_outputs = n_outputs
         self._delta_t = delta_t
