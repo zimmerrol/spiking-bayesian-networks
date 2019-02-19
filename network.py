@@ -69,7 +69,7 @@ class BinaryWTANetwork():
         if diff[k]:
             z[k] = 1.0
 
-        self._b += self._delta_T * self._eta_b * (self._r_net * self._m_k - ut.dirac(z - 1))
+        self._b += self._delta_T * self._eta_b * (self._delta_T * self._r_net * self._m_k - ut.dirac(z - 1))
         self._V += self._delta_T * self._eta_v * ut.dirac(z - 1) * (inputs.T - ut.sigmoid(self._V))
 
         return z
@@ -119,7 +119,7 @@ class ContinuousWTANetwork():
         if diff[k]:
             z[k] = 1.0
 
-        self._b += self._delta_T * self._eta_b * (self._r_net * self._m_k - ut.dirac(z - 1))
+        self._b += self._delta_T * self._eta_b * (self._delta_T * self._r_net * self._m_k - ut.dirac(z - 1))
         self._V += self._delta_T * self._eta_v * ut.dirac(z - 1) * self._beta.T * (inputs.T - self._V)
         self._beta += self._delta_T * self._eta_beta * (np.dot(self._V.T**2, z) + inputs * np.dot(self._V.T, z) - 0.5*inputs**2 + 1.0 / self._beta)
 
