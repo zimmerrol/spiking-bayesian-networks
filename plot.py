@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.decomposition import PCA
 import utility as ut
+from matplotlib.lines import Line2D
 
 # ------------------------------------------------------------------ #
 # matplotlib helpers
@@ -41,6 +42,7 @@ def add_axes_as_grid(fig, rows, cols, m_xl=0, m_yl=0, m_xr=0, m_yr=0, m_xc=0, m_
 # plot
 # ------------------------------------------------------------------ #
 
+
 def plot_spiketrain(spiketrain_nd, delta_T, tmin = 0.0, tmax = None):
     """
         Parameters
@@ -78,6 +80,7 @@ def plot_spiketrain(spiketrain_nd, delta_T, tmin = 0.0, tmax = None):
         ax.set_ylabel(r'Neuron $i$')
 
     return fig, ax
+
 
 class WeightPlotter():
     def __init__(self, weights):
@@ -153,5 +156,33 @@ class WeightPCAPlotter():
     def update(self, weights):
         weights_pca = self._pca.transform(weights)
         self._scatter_variable.set_offsets(weights_pca)
+        self._fig.canvas.draw()
+        self._fig.canvas.flush_events()
+
+
+class CurvePlotter():
+    def __init__(self, x=None, y=None, x_label=None, y_label=None):
+        # set up figure for PCA
+        self._fig, self._ax = plt.subplots(1)
+
+        self._line = Line2D([], [], color='C0')
+        self._ax.add_line(self._line)
+        self._ax.set_xlabel(x_label)
+        self._ax.set_ylabel(y_label)
+
+        plt.show(block=False)
+
+    def update(self, x, y=None):
+        if y is None:
+            y = x
+            x = np.arange(len(y))
+
+        y = np.array(y)
+        x = np.array(x)
+
+        self._ax.set_xlim([x.min(), x.max()])
+        self._ax.set_ylim([y.min(), y.max()])
+
+        self._line.set_data(x, y)
         self._fig.canvas.draw()
         self._fig.canvas.flush_events()
