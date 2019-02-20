@@ -76,3 +76,63 @@ def plot_spiketrain(spiketrain_nd, delta_T, tmin = 0.0, tmax = None):
         ax.set_ylabel(r'Neuron $i$')
 
     return fig, ax
+
+class WeightPlotter():
+    def __init__(self):
+        self._fig = plt.figure(figsize=(3.5, 1.16), dpi=300)
+        axes = pt.add_axes_as_grid(self._fig, 2, 6, m_xc=0.01, m_yc=0.01)
+
+        self._imshows = []
+        for i, ax in enumerate( list(axes.flatten()) ):
+            # disable legends
+            ax.set_yticks([])
+            ax.set_xticks([])
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_visible(False)
+            ax.spines['bottom'].set_visible(False)
+
+            if i >= n_outputs:
+                self._imshows.append(ax.imshow(np.zeros((24, 24))))
+            else:
+                self._imshows.append(ax.imshow(ut.sigmoid(net._V[i].reshape((24, 24)))))
+        plt.show(block=False)
+        self._fig.canvas.draw()
+        self._fig.canvas.flush_events()
+
+    def update(self, weights):
+        weights = weights.reshape((-1, 24, 24))
+        for i, imshow in enumerate(self._imshows):
+            if i <= len(weights):
+                imshow.set_data(weights[i])
+
+        self._fig.canvas.draw()
+        self._fig.canvas.flush_events()
+
+
+class WeightPCAPlotter():
+    def __init__(self, X, n_outputs):
+        # set up figure for PCA
+        self._fig, self._ax = plt.subplots(1)
+        colors = ["C0", "C1", "C2", "C3"]
+        Y_color = np.empty(Y.shape, dtype="object")
+        for i, label in enumerate(labels):
+            Y_color[Y == label] = colors[i%len(colors)]
+        self._pca = PCA(n_components=2)
+        self._pca.fit(X)
+        X_pca = self._pca.transform(X)
+
+        self._ax.set_xlabel("PC 1")
+        self._ax.set_ylabel("PC 2")
+
+        self._scatter_constant = self._ax.scatter(X_pca[:, 0], X_pca[:, 1], c=Y_color,alpha=0.5, marker="o", s=2)
+        self._scatter_variable = self._ax.scatter(np.zeros(n_outputs), np.zeros(n_outputs), c="black", marker="o", s=4)
+        import matplotlib.patches as mpatches
+        self._fig.legend(loc='upper center', bbox_to_anchor=(0.5, 1.0), fancybox=True, ncol=1+len(labels), handles=[mpatches.Patch(color=Y_color[i], label=labels[i]) for i in range(len(labels))] + [mpatches.Patch(color="black", label="Weights")])
+        plt.show(block=False)
+
+    def update(self, weights):
+        weights_pca = self._pca.transform(weights)
+        self._scatter_variable.set_offsets(weights_pca)
+        self._fig.canvas.draw()
+        self._fig.canvas.flush_events()
