@@ -90,15 +90,16 @@ def generate_constant_trains(frequencies, T, T_image=0.250, delta_T=1e-2, batch_
         yield rates
 
 
-def generate_bars(num_samples, height, width, p=1.0):
+def generate_bars(num_samples, height, width, p):
     X = np.zeros((num_samples, height, width))
-    bars_y = np.random.uniform(size=(num_samples, height)) < p
-    bars_x = np.random.uniform(size=(num_samples, width)) < p
-
+    bars_x = np.random.uniform(size=(num_samples, width, 1)) < p
+    bars_y = np.random.uniform(size=(num_samples, height, 1)) < p
+    print("\% horizontal bars: {}".format(np.sum(bars_x)/num_samples ) )
+    print("\% vertical bars: {}".format(np.sum(bars_y)/num_samples ) )
+    
     X[bars_x[:, :, 0], :] = 1.0
     for i, x in enumerate(X):
-        x[:, bars_y[i, :, 1]] = 1.0
-
+        x[:, bars_y[i,:, 0]] = 1.0
     return X
 
 
