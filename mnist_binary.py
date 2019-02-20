@@ -47,21 +47,31 @@ net = nt.BinaryWTANetwork(n_inputs=n_inputs, n_outputs=n_outputs,
 # train
 from plot import WeightPCAPlotter, WeightPlotter
 pca_plotter = WeightPCAPlotter(X, Y, n_outputs, labels)
-weights_plotter = WeightPlotter()
+weights_plotter = WeightPlotter(ut.sigmoid(net._V).reshape((-1, W, H)))
+
+from collections import deque
+
+average_length_likelihood = 500
 
 pbar = tqdm(enumerate(X_spikes))
 for batch_index, sample_batch in pbar:
     # update figure here
+    log_likelihoods = deque([])
     for sample in sample_batch:
         net.step(sample)
+
+        # log likelihood
+        Ak = np.sum(np.log(1+np.exp(net._V)), -1)
+
+        pi = ut.sigmoid(net._V)
+        log_likelihoods.append(np.log(1.0/n_outputs) + np.log(np.sum(np.prod(sample * pi + (1-sample) * (1-pi), axis=-1))))
+
+        if len(log_likelihoods) > average_length_likelihood:
+            log_likelihoods.pop()
 
     weights = ut.sigmoid(net._V)
 
     pca_plotter.update(weights)
     weights_plotter.update(weights)
 
-    pbar.set_description(f'<sigma(V)> = {np.mean(weights):.4f}, <b> = {np.mean(net._b):.4f}')
-    
-
-# log likelihood
-# 
+    pbar.set_description(f'<sigma(V)> = {np.mean(weights):.4f}, <b> = {np.mean(net._b):.4f}, <L(y)> = {np.mean(log_likelihoods)}')

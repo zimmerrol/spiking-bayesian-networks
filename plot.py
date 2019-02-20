@@ -1,6 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.decomposition import PCA
+import utility as ut
 
 # ------------------------------------------------------------------ #
 # matplotlib helpers
@@ -79,9 +80,11 @@ def plot_spiketrain(spiketrain_nd, delta_T, tmin = 0.0, tmax = None):
     return fig, ax
 
 class WeightPlotter():
-    def __init__(self):
+    def __init__(self, weights):
         self._fig = plt.figure(figsize=(3.5, 1.16), dpi=300)
-        axes = pt.add_axes_as_grid(self._fig, 2, 6, m_xc=0.01, m_yc=0.01)
+        axes = add_axes_as_grid(self._fig, 2, 6, m_xc=0.01, m_yc=0.01)
+
+        self._weight_shape = weights.shape[1:]
 
         self._imshows = []
         for i, ax in enumerate( list(axes.flatten()) ):
@@ -93,16 +96,16 @@ class WeightPlotter():
             ax.spines['left'].set_visible(False)
             ax.spines['bottom'].set_visible(False)
 
-            if i >= n_outputs:
-                self._imshows.append(ax.imshow(np.zeros((24, 24))))
+            if i >= len(weights):
+                self._imshows.append(ax.imshow(np.zeros(self._weight_shape), vmin=0, vmax=1))
             else:
-                self._imshows.append(ax.imshow(ut.sigmoid(net._V[i].reshape((24, 24)))))
+                self._imshows.append(ax.imshow(ut.sigmoid(weights[i].reshape(self._weight_shape)), vmin=0, vmax=1))
         plt.show(block=False)
         self._fig.canvas.draw()
         self._fig.canvas.flush_events()
 
     def update(self, weights):
-        weights = weights.reshape((-1, 24, 24))
+        weights = weights.reshape((-1, *self._weight_shape))
         for i, imshow in enumerate(self._imshows):
             if i <= len(weights):
                 imshow.set_data(weights[i])
