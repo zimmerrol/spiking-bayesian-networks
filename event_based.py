@@ -104,9 +104,16 @@ class EventBinaryWTANetwork():
         self._eta_v = eta_v
         self._eta_b = eta_b
         self._history_duration = history_duration
-        self._z_hist = deque([])  # index k of spiking output neuron z
-        self._t_hist = deque([])  # time float of spike
-        self._y_hist = deque([])  # mnist sample id of input
+        self._l_avg = 0              # current avg likelihood estimate over past history duration
+        self._l_hist = deque([])     # log likelihoods at past time steps
+        self._z_hist = deque([])     # index k of spiking output neuron z
+        self._t_hist = deque([])     # time float of spike
+        self._y_hist = deque([])     # mnist sample id of input
+
+        # for likelihood plotting keep integer time step data [s]
+        self._l_avg_hist = deque([])
+        self._T_hist = deque([])
+        self._T_duration = 100 # [s]
 
         if np.isscalar(self._m_k):
             self._m_k = np.ones((n_outputs, 1)) * self._m_k
@@ -132,6 +139,12 @@ class EventBinaryWTANetwork():
         self._z_scat = ax.scatter([], [], s=10)
         # self._z_fig.show()
 
+    def update_z_plot(self):
+        dat = np.array(list(zip(net._t_hist, net._z_hist)))
+        dat[:,0] = dat[:,0] - current_time
+        self._z_scat.set_offsets(dat)
+        # self._z_fig.draw()
+
     def init_y_plot(self):
         assert self._history_duration > 0, "need a history to plot"
         self._y_fig, self._y_ax = plt.subplots()
@@ -139,6 +152,7 @@ class EventBinaryWTANetwork():
             ylim=(-.5, net._n_inputs-.5))
         self._y_scat = ax.scatter([], [], s=10)
         # plt.show(block=False)
+
 
     def init_weight_plot(self):
         self._w_fig = plt.figure(figsize=(3.5, 1.16), dpi=300)
@@ -156,7 +170,12 @@ class EventBinaryWTANetwork():
             self._w_imshows.append(ax.imshow(ut.sigmoid(
                 net._V[i].reshape((28, 28))), vmin=0.3, vmax=.7))
 
-        plt.show(block=False)
+
+    def update_weight_plot(self):
+        weights = self._V.reshape((-1, 28, 28))
+        for i in range(len(self._w_imshows)):
+            self._w_imshows[i].set_data(ut.sigmoid(weights[i]))
+
 
     def init_pca_plot(self, mnist):
         # set up figure for PCA
@@ -176,7 +195,7 @@ class EventBinaryWTANetwork():
                 X_pca[:, 0], X_pca[:, 1], c=Y_color,alpha=0.5, marker="o", s=2)
             self._pca_scatter_variable = self._pca_ax.scatter(
                 np.zeros(self._n_outputs), np.zeros(self._n_outputs),
-                c="black", marker="o", s=4)
+                c="black", marker="o", s=30)
 
             self._pca_fig.legend(loc='upper center', bbox_to_anchor=(0.5, 1.0),
                 fancybox=True, ncol=1+len(labels),
@@ -186,21 +205,37 @@ class EventBinaryWTANetwork():
                 [mpatches.Patch(color="black", label="Weights")])
 
 
-    def update_z_plot(self):
-        dat = np.array(list(zip(net._t_hist, net._z_hist)))
-        dat[:,0] = dat[:,0] - current_time
-        self._z_scat.set_offsets(dat)
-        # self._z_fig.draw()
-
-
-    def update_weight_plot(self):
-        weights = self._V.reshape((-1, 28, 28))
-        for i in range(len(self._w_imshows)):
-            self._w_imshows[i].set_data(ut.sigmoid(weights[i]))
-
     def update_pca_plot(self):
         weights_pca = self._pca.transform(ut.sigmoid(self._V))
         self._pca_scatter_variable.set_offsets(weights_pca)
+
+
+    def init_l_plot(self):
+        assert self._history_duration > 0, "need a history to plot"
+        self._l_fig, _ = plt.subplots()
+        self._l_ax = plt.axes(xlim=(0, self._history_duration),
+            ylim=(-360, -150))
+        self._l_ax.set_xlabel(r'time $[s]$')
+        self._l_ax.set_ylabel(r'$<L(y)>$')
+        self._l_line, = self._l_ax.plot(self._T_hist, self._l_avg_hist)
+
+    def update_l_plot(self):
+        xmin, xmax = self._l_ax.get_xlim()
+        ymin, ymax = self._l_ax.get_ylim()
+        # x axis rescale if needed
+        if self._T_hist[-1] > xmax:
+            # set both
+            # if (xmax-xmin) > self._T_duration:
+            #     self._l_ax.set_xlim(
+            #         self._T_hist[-1]-self._T_duration, self._T_hist[-1])
+            # else:
+            self._l_ax.set_xlim(xmin, self._T_hist[-1])
+            self._l_ax.figure.canvas.draw()
+        if self._l_avg_hist[-1] > ymax:
+            ymax = self._l_avg_hist[-1] + np.abs(self._l_avg_hist[-1] * .1)
+            self._l_ax.set_ylim(ymin, ymax)
+
+        self._l_line.set_data(self._T_hist, self._l_avg_hist)
 
     def step(self):
         global current_time
@@ -244,11 +279,35 @@ class EventBinaryWTANetwork():
             self._t_hist.append(current_time)
             self._z_hist.append(k)
             self._y_hist.append(current_image_id)
+            # log likelihood
+            try:
+                Ak = np.sum(np.log(1+np.exp(self._V)), -1)
+                pi = ut.sigmoid(self._V)
+                l = np.log(1.0/self._n_outputs) + \
+                    np.log(np.sum(np.prod(inputs[:,0] * pi + \
+                    (1-inputs[:,0]) * (1-pi), axis=-1)))
+            except:
+                l = np.nan
+            self._l_hist.append(l)
+
             while len(self._t_hist) > 1 \
             and self._t_hist[0] < current_time - self._history_duration:
                 self._t_hist.popleft()
                 self._z_hist.popleft()
                 self._y_hist.popleft()
+                self._l_hist.popleft()
+
+            self._l_avg = np.nanmean(self._l_hist)
+
+            # update hidden long history
+            if len(self._T_hist) == 0 \
+            or np.floor(current_time) > self._T_hist[-1]:
+                self._T_hist.append(np.floor(current_time))
+                self._l_avg_hist.append(self._l_avg)
+
+            # if len(self._T_hist) > self._T_duration:
+            #     self._T_hist.popleft()
+            #     self._l_avg_hist.popleft()
 
         return z
 
@@ -264,7 +323,8 @@ class EventBinaryWTANetwork():
 
                 out = ''
                 for i in net._z_spikes:
-                    out += f'{i/current_time:.3f} '
+                    out += f'{i/current_time:.1f} '
+                out += f'<L(y)> = {self._l_avg:.1f}'
                 pbar.set_description(out)
 
             # self.update_z_plot()
@@ -299,6 +359,15 @@ class EventBinaryWTANetwork():
             init_func=None, frames=2, interval=1500,
             blit=False, repeat=True)
 
+        def anim_l(i):
+            try:
+                self.update_l_plot()
+            except:
+                pass
+        self._l_animation = animation.FuncAnimation(self._l_fig, anim_l,
+            init_func=None, frames=2, interval=1500,
+            blit=False, repeat=True)
+
 
 def run_thread():
     thread = threading.Thread(target=net.update_steps)
@@ -324,12 +393,10 @@ if __name__ == '__main__':
     net.init_weight_plot()
     net.init_z_plot()
     net.init_pca_plot(mnist)
+    net.init_l_plot()
     net.init_animations()
-
     # plt.show() # dont do this, causes crashes on osx, use plt.ion() instead
 
     thread = run_thread()
-
-    # net.update_steps(int(1e4))
 
 
