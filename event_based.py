@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib import animation
 import utility as ut
 import network as nt
 from tqdm import tqdm as tqdm
@@ -53,32 +54,6 @@ def get_input_at_time(t):
         current_image_px = mnist_px_samples[current_image_id]
 
     return current_image_px
-
-
-
-def init_z_plot(net):
-    assert net._history_duration > 0, "need a history to plot"
-    fig, ax = plt.subplots()
-    ax = plt.axes(xlim=(-net._history_duration, 0),
-        ylim=(-.5, net._n_outputs-.5))
-    scat = ax.scatter([], [], s=10)
-
-    return fig, ax, scat
-
-def plot_z_history(net, scat):
-    # print(list(zip(t_hist, z_hist)))
-    dat = np.array(list(zip(net._t_hist, net._z_hist)))
-    dat[:,0] = dat[:,0] - current_time
-    # print(dat)
-    # dat = np.array(net._t_hist)-net._history_duration
-    # dat = np.hstack((dat, np.array(net._z_hist)))
-    # print(dat.shape)
-    # exit()
-    # dat = np.array(list(zip(net._t_hist, net._z_hist)))
-    scat.set_offsets(dat)
-    return scat,
-
-
 
 
 class EventBinaryWTANetwork():
@@ -142,6 +117,53 @@ class EventBinaryWTANetwork():
         """
         return - np.log(np.random.uniform())/self._r_net
 
+    def init_z_plot(self):
+        assert self._history_duration > 0, "need a history to plot"
+        self._z_fig, self._z_ax = plt.subplots()
+        ax = plt.axes(xlim=(-self._history_duration, 0),
+            ylim=(-.5, net._n_outputs-.5))
+        self._z_scat = ax.scatter([], [], s=10)
+        # self._z_fig.show()
+
+    def init_y_plot(self):
+        assert self._history_duration > 0, "need a history to plot"
+        self._y_fig, self._y_ax = plt.subplots()
+        ax = plt.axes(xlim=(-self._history_duration, 0),
+            ylim=(-.5, net._n_inputs-.5))
+        self._y_scat = ax.scatter([], [], s=10)
+        # plt.show(block=False)
+
+    def init_weight_plot(self):
+        self._w_fig = plt.figure(figsize=(3.5, 1.16), dpi=300)
+        axes = pt.add_axes_as_grid(self._w_fig, 2, 6, m_xc=0.01, m_yc=0.01)
+        self._w_imshows = []
+        for i, ax in enumerate( list(axes.flatten()) ):
+            # disable legends
+            ax.set_yticks([])
+            ax.set_xticks([])
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_visible(False)
+            ax.spines['bottom'].set_visible(False)
+
+            self._w_imshows.append(ax.imshow(ut.sigmoid(
+                net._V[i].reshape((28, 28))), vmin=0.3, vmax=.7))
+
+        plt.show(block=False)
+
+
+    def update_z_plot(self):
+        dat = np.array(list(zip(net._t_hist, net._z_hist)))
+        dat[:,0] = dat[:,0] - current_time
+        self._z_scat.set_offsets(dat)
+        # self._z_fig.draw()
+
+
+    def update_weight_plot(self):
+        weights = self._V.reshape((-1, 28, 28))
+        for i in range(len(self._w_imshows)):
+            self._w_imshows[i].set_data(ut.sigmoid(weights[i]))
+
     def step(self):
         global current_time
         isi =  - np.log(np.random.uniform())/self._r_net
@@ -192,30 +214,27 @@ class EventBinaryWTANetwork():
 
         return z
 
-def update_steps(steps=1000, imshows=None, fig=None):
-    pbar = tqdm(range(steps))
-    for i in pbar:
-        z = net.step()[:,0]
-        # plotting every percent
-        if not i % int(steps/100):
-            # reshape to 28x28 to plot
-            weights = net._V.reshape((-1, 28, 28))
-            if fig is not None:
-                for i in range(len(imshows)):
-                    imshows[i].set_data(ut.sigmoid(weights[i]))
+    def update_steps(self, steps=1000, animate=True):
 
-                fig.canvas.draw()
-                fig.canvas.flush_events()
+        if animate:
+            pass
 
-                plot_z_history(net, scat_hist)
-                fig_hist.canvas.draw()
-                fig_hist.canvas.flush_events()
+
+
+        pbar = tqdm(range(steps))
+        for i in pbar:
+            z = self.step()[:,0]
+
+            # update weight plot every percent
+            if not i % int(steps/100):
+                # self.update_weight_plot()
 
                 out = ''
                 for i in net._z_spikes:
                     out += f'{i/current_time:.3f} '
                 pbar.set_description(out)
 
+            # self.update_z_plot()
 
 
 delta_T = 1e-3
@@ -231,27 +250,20 @@ if __name__ == '__main__':
         delta_T=delta_T, r_net=r_net, m_k=m_k, eta_v=1e-4, eta_b=1e-1,
         history_duration=2)
 
-    # weight figures
-    fig = plt.figure(figsize=(3.5, 1.16), dpi=300)
+    # plt.ion()
+    net.init_weight_plot()
+    net.init_z_plot()
+
+    def anim_z(i):
+        try:
+            net.update_z_plot()
+        except:
+            pass
+
+    anim = animation.FuncAnimation(net._z_fig, anim_z,
+        init_func=None, frames=2, interval=200,
+        blit=False, repeat=True)
+
     plt.show(block=False)
-    axes = pt.add_axes_as_grid(fig, 2, 6, m_xc=0.01, m_yc=0.01)
-    imshows = []
-    for i, ax in enumerate( list(axes.flatten()) ):
-        # disable legends
-        ax.set_yticks([])
-        ax.set_xticks([])
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['left'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
 
-        imshows.append(ax.imshow(ut.sigmoid(net._V[i].reshape((28, 28))),
-            vmin=0.3, vmax=.7))
-    fig.canvas.draw()
-    fig.canvas.flush_events()
-
-    fig_hist, ax_hist, scat_hist = init_z_plot(net)
-
-    update_steps(int(1e5), imshows, fig)
-
-
+    net.update_steps(int(1e4))
