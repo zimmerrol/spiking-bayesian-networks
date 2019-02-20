@@ -1,4 +1,6 @@
 import numpy as np
+# import matplotlib
+# matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from matplotlib import animation
 import utility as ut
@@ -6,6 +8,7 @@ import network as nt
 from tqdm import tqdm as tqdm
 import plot as pt
 from collections import deque # fifo structure for history
+import threading
 
 
 
@@ -214,12 +217,7 @@ class EventBinaryWTANetwork():
 
         return z
 
-    def update_steps(self, steps=1000, animate=True):
-
-        if animate:
-            pass
-
-
+    def update_steps(self, steps=10000):
 
         pbar = tqdm(range(steps))
         for i in pbar:
@@ -236,6 +234,11 @@ class EventBinaryWTANetwork():
 
             # self.update_z_plot()
 
+def run_thread():
+    thread = threading.Thread(target=net.update_steps)
+    thread.daemon = True
+    thread.start()
+    return thread
 
 delta_T = 1e-3
 n_outputs = 12
@@ -247,23 +250,37 @@ if __name__ == '__main__':
     init_mnist()
     get_input_at_time(0)
     net = EventBinaryWTANetwork(n_inputs=n_inputs, n_outputs=n_outputs,
-        delta_T=delta_T, r_net=r_net, m_k=m_k, eta_v=1e-4, eta_b=1e-1,
-        history_duration=2)
+        delta_T=delta_T, r_net=r_net, m_k=m_k, eta_v=1e-2, eta_b=1e-0,
+        history_duration=10)
 
-    # plt.ion()
+    plt.ioff()
     net.init_weight_plot()
     net.init_z_plot()
 
+    # animate spike train
     def anim_z(i):
         try:
             net.update_z_plot()
         except:
             pass
-
-    anim = animation.FuncAnimation(net._z_fig, anim_z,
+    animation_z = animation.FuncAnimation(net._z_fig, anim_z,
         init_func=None, frames=2, interval=200,
+        blit=False, repeat=True)
+
+    # animate weights
+    def anim_w(i):
+        try:
+            net.update_weight_plot()
+        except:
+            pass
+    animation_w = animation.FuncAnimation(net._w_fig, anim_w,
+        init_func=None, frames=2, interval=1000,
         blit=False, repeat=True)
 
     plt.show(block=False)
 
-    net.update_steps(int(1e4))
+    thread = run_thread()
+
+    # net.update_steps(int(1e4))
+
+
