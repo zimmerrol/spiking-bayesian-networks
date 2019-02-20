@@ -5,10 +5,11 @@ import network as nt
 from tqdm import tqdm as tqdm
 import plot as pt
 
-delta_T = 1e-2
+delta_T = 1e-3
 
 # mnist
-labels = [0, 1]
+spiking_input = False
+labels = [2, 4]
 (x_train, y_train), (x_test, y_test) = ut.mnist.load_data()
 selection = [y_test == label for label in labels]
 
@@ -18,20 +19,20 @@ X = x_test[selection]
 Y = y_test[selection]
 X = X.reshape((len(X), -1)) / 255.0
 X = (X > 0.5).astype(np.float32)
-X_frequencies = X * 70.0 + 20.0
 
-for label in labels:
-    print(sum(Y==label))
-
-X_spikes = ut.generate_spike_trains(X_frequencies, 10000, delta_T=delta_T, batch_size=1)
+if spiking_input:
+    X_frequencies = X * 70.0 + 20.0
+    X_spikes = ut.generate_spike_trains(X_frequencies, 1000, delta_T=1e-2)
+else:
+    X_spikes = ut.generate_constant_trains(X_frequencies, 1000, delta_T=1e-2)
 
 n_outputs = 12
 n_inputs = 28*28
-r_net = 20.0 # 0.5
+r_net = 50.0 # 0.5
 m_k = 1.0/n_outputs
 
 net = nt.BinaryWTANetwork(n_inputs=n_inputs, n_outputs=n_outputs,
-                            delta_T=delta_T, r_net=r_net, m_k=m_k, eta_v=1e-1, eta_b=1e-0)
+                            delta_T=delta_T, r_net=r_net, m_k=m_k, eta_v=1e+1, eta_b=1e+3)
 
 fig = plt.figure(figsize=(3.5, 1.16), dpi=300)
 plt.show(block=False)
@@ -48,7 +49,10 @@ for i, ax in enumerate( list(axes.flatten()) ):
     ax.spines['left'].set_visible(False)
     ax.spines['bottom'].set_visible(False)
 
-    imshows.append(ax.imshow(ut.sigmoid(net._V[i].reshape((28, 28))), vmin=0.3, vmax=0.7))
+    if i >= n_outputs:
+        imshows.append(ax.imshow(np.zeros((28, 28))))
+    else:
+        imshows.append(ax.imshow(ut.sigmoid(net._V[i].reshape((28, 28)))))
 fig.canvas.draw()
 fig.canvas.flush_events()
 
@@ -64,6 +68,9 @@ for batch_index, sample_batch in pbar:
     # reshape to 28x28 to plot
     weights = net._V.reshape((-1, 28, 28))
     for i in range(len(imshows)):
+        if i >= n_outputs:
+            break
+
         # pi_k_i = sigmoid(weight)
         imshows[i].set_data(ut.sigmoid(weights[i]))
 
