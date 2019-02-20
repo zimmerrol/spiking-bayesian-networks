@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from sklearn.decomposition import PCA
 
 # ------------------------------------------------------------------ #
 # matplotlib helpers
@@ -111,7 +112,7 @@ class WeightPlotter():
 
 
 class WeightPCAPlotter():
-    def __init__(self, X, n_outputs):
+    def __init__(self, X, n_outputs, labels):
         # set up figure for PCA
         self._fig, self._ax = plt.subplots(1)
         colors = ["C0", "C1", "C2", "C3"]
