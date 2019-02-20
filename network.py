@@ -323,8 +323,9 @@ class EventBasedOutputEPSPBinaryWTANetwork():
 
         self._b += self._delta_T * self._eta_b * (isi * self._r_net * self._m_k - ut.dirac(z - 1))
 
-        for time in np.arange(new_time, new_time + self._tau, self._delta_T):
-            self._V += self._delta_T * self._eta_v * ut.dirac(z - 1) * (inputs.T - ut.sigmoid(self._V))
+        for i in range(len(self._trace)):
+            if new_time - self._trace[-i][0] < self._tau:
+                self._V += self._delta_T * self._eta_v * self._trace[i][2] * (self._trace[i][1].T - ut.sigmoid(self._V))
 
         self._current_time += isi
 
