@@ -69,7 +69,7 @@ def plot_z_history(net, scat):
     # print(list(zip(t_hist, z_hist)))
     dat = np.array(list(zip(net._t_hist, net._z_hist)))
     dat[:,0] = dat[:,0] - current_time
-    print(dat)
+    # print(dat)
     # dat = np.array(net._t_hist)-net._history_duration
     # dat = np.hstack((dat, np.array(net._z_hist)))
     # print(dat.shape)
@@ -144,8 +144,8 @@ class EventBinaryWTANetwork():
 
     def step(self):
         global current_time
-        current_time = current_time - np.log(np.random.uniform())/self._r_net
-        inputs = get_input_at_time(current_time)
+        isi =  - np.log(np.random.uniform())/self._r_net
+        inputs = get_input_at_time(current_time + isi)
         inputs = inputs.reshape((-1, 1))
         assert len(inputs) == self._n_inputs, "Input length does not match"
 
@@ -155,10 +155,11 @@ class EventBinaryWTANetwork():
         z = np.zeros((self._n_outputs, 1))
 
         # p \propto softmax(u); eq. (4)
-        p_z = np.exp(u) / np.sum(np.exp(u) + 1e-8) * self._delta_T * self._r_net
+        # p_z = np.exp(u) / np.sum(np.exp(u) + 1e-8) * self._delta_T * self._r_net
+        p_z = np.exp(u) / np.sum(np.exp(u) + 1e-8)
 
         # erm so this is needed cos event based i guess
-        p_z = p_z / np.sum(p_z)
+        # p_z = p_z / np.sum(p_z)
 
 
         # sample from softmax distribution, i.e. choose a single neuron to spike
@@ -171,8 +172,12 @@ class EventBinaryWTANetwork():
             z[k] = 1.0
             self._z_spikes[k] += 1
 
-        self._b += self._delta_T * self._eta_b * (self._delta_T * self._r_net * self._m_k - ut.dirac(z - 1))
-        self._V += self._delta_T * self._eta_v * ut.dirac(z - 1) * (inputs.T - ut.sigmoid(self._V))
+        self._b += self._eta_b * \
+            (isi * self._r_net * self._m_k - ut.dirac(z - 1))
+        self._V += self._eta_v * ut.dirac(z - 1) * \
+            (inputs.T - ut.sigmoid(self._V))
+
+        current_time = current_time + isi
 
         # update history stuff
         if self._history_duration > 0:
@@ -223,8 +228,8 @@ if __name__ == '__main__':
     init_mnist()
     get_input_at_time(0)
     net = EventBinaryWTANetwork(n_inputs=n_inputs, n_outputs=n_outputs,
-        delta_T=delta_T, r_net=r_net, m_k=m_k, eta_v=1e-1, eta_b=1e-0,
-        history_duration=10)
+        delta_T=delta_T, r_net=r_net, m_k=m_k, eta_v=1e-4, eta_b=1e-1,
+        history_duration=2)
 
     # weight figures
     fig = plt.figure(figsize=(3.5, 1.16), dpi=300)
