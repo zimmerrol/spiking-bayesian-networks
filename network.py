@@ -121,7 +121,7 @@ class EventBasedBinaryWTANetwork():
         self._trace = deque([])
         self._max_trace_length = max_trace_length
 
-    def step(self, data_generator_fn):
+    def step(self, data_generator_fn, update_weights=True):
         # sample  isi 
         isi = - np.log(np.random.uniform()) / self._r_net
 
@@ -144,8 +144,9 @@ class EventBasedBinaryWTANetwork():
 
         z[k] = 1.0
 
-        self._b += self._eta_b * (isi * self._r_net * self._m_k - ut.dirac(z - 1))
-        self._V += self._eta_v * ut.dirac(z - 1) * (inputs.T - ut.sigmoid(self._V))
+        if update_weights:
+            self._b += self._eta_b * (isi * self._r_net * self._m_k - ut.dirac(z - 1))
+            self._V += self._eta_v * ut.dirac(z - 1) * (inputs.T - ut.sigmoid(self._V))
 
         self._current_time += isi
 
@@ -297,7 +298,7 @@ class EventBasedOutputEPSPBinaryWTANetwork():
         self._trace = deque([])
         self._max_trace_length = max_trace_length
 
-    def step(self, data_generator_fn):
+    def step(self, data_generator_fn, update_weights=True):
         # sample  isi
         isi = - np.log(np.random.uniform()) / self._r_net
         new_time = self._current_time + isi
@@ -321,18 +322,49 @@ class EventBasedOutputEPSPBinaryWTANetwork():
 
         z[k] = 1.0
 
-        self._b += self._delta_T * self._eta_b * (isi * self._r_net * self._m_k - ut.dirac(z - 1))
+        if update_weights:
+            self._b += self._delta_T * self._eta_b * (isi * self._r_net * self._m_k - ut.dirac(z - 1))
 
-        for i in range(len(self._trace)):
-            if new_time - self._trace[-i][0] < self._tau:
-                self._V += self._delta_T * self._eta_v * self._trace[i][2] * (self._trace[i][1].T - ut.sigmoid(self._V))
+            # get index of first relevant entry
+            epsp_history_start_index = len(self._trace)-1
+            if epsp_history_start_index >= 0:
+                while new_time - self._trace[epsp_history_start_index][0] < 2*self._tau and epsp_history_start_index > 0:
+                    epsp_history_start_index -= 1
+
+                epsp_history_start_time = self._trace[epsp_history_start_index][0]
+                for time in np.arange(epsp_history_start_time + self._delta_T, new_time, self._delta_T):
+                    for i in range(epsp_history_start_index, len(self._trace)):
+                        if self._trace[i][0] > time:
+                            break
+
+                        z_decayed = self._trace[i][2] * np.exp(-(time - self._trace[i][0])/self._tau)
+                        self._V += self._delta_T * self._eta_v * z_decayed * (inputs.T - ut.sigmoid(self._V))
+
+            self._V += self._eta_v * ut.dirac(z - 1) * (inputs.T - ut.sigmoid(self._V))
 
         self._current_time += isi
 
         self._trace.append((self._current_time, inputs, z, u, self._V, self._b))
 
         if len(self._trace) > self._max_trace_length:
-            self._trace.pop()
+            self._trace.popleft()
+
+        return z
+
+    def get_integrated_output(self, time=None):
+        if time is None:
+            time = self._current_time
+
+        epsp_history_start_index = len(self._trace) - 1
+        while time - self._trace[epsp_history_start_index][0] < 2 * self._tau and epsp_history_start_index > 0:
+            epsp_history_start_index -= 1
+
+        z = np.zeros((self._n_outputs, 1))
+        for i in range(epsp_history_start_index, len(self._trace)):
+            if self._trace[i][0] > time:
+                break
+
+            z += self._trace[i][2] * np.exp(-(time - self._trace[i][0]) / self._tau)
 
         return z
 
