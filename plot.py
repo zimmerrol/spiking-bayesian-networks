@@ -115,7 +115,7 @@ class WeightPlotter():
 
 
 class WeightPCAPlotter():
-    def __init__(self, X, Y, n_outputs, labels):
+    def __init__(self, X, Y, n_outputs, labels, annotations=False):
         # set up figure for PCA
         self._fig, self._ax = plt.subplots(1)
         colors = ["C0", "C1", "C2", "C3"]
@@ -125,6 +125,21 @@ class WeightPCAPlotter():
         self._pca = PCA(n_components=2)
         self._pca.fit(X)
         X_pca = self._pca.transform(X)
+
+        if annotations:
+            from matplotlib import offsetbox
+            shown_images = np.array([[1., 1.]])
+            dim = int(np.sqrt(X[i].shape))
+            for i in range(X.shape[0]):
+                dist = np.sum((X_pca[i] - shown_images) ** 2, 1)
+                if np.min(dist) < 5e-1:
+                    # don't show points that are too close
+                    continue
+                shown_images = np.r_[shown_images, [X_pca[i]] ]
+                imagebox = offsetbox.AnnotationBbox(
+                    offsetbox.OffsetImage(X[i].reshape((dim, dim)), zoom=1.5),
+                    X_pca[i])
+                self._ax.add_artist(imagebox)
 
         self._ax.set_xlabel("PC 1")
         self._ax.set_ylabel("PC 2")

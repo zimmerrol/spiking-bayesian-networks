@@ -11,60 +11,64 @@ import plot as pt
 delta_T = 1e-3
 
 # bars
+spiking_input = False
 dim = 8
-X = ut.generate_bars(10000, dim, dim, p=1.7/8.0)
-
-X = np.reshape(X, (-1, dim*dim))
-X_frequencies = X * 70.0 + 20.0
-
-
-X_spikes = ut.generate_spike_trains(X_frequencies, 1000, delta_T=delta_T)
-
-#pt.plot_spiketrain(X_spikes, delta_T)
-#plt.show()
-
-
 n_outputs = 2*dim
 n_inputs = dim*dim
 r_net = 2 # 0.5
 m_k = 1.0/n_outputs
+X = ut.generate_bars(10000, dim, dim, p=1.7/8.0)
+
+X = np.reshape(X, (-1, dim*dim))
+if spiking_input:
+    X = X * 70.0 + 20.0
+    X_spikes = ut.generate_spike_trains(X, 1000, delta_T=delta_T)
+else:
+    X_spikes = ut.generate_constant_trains(X, 1000, delta_T=delta_T)
+
+
+"""
+# visualize spike trains
+test_spikes = list(X_spikes)[0]
+pt.plot_spiketrain(test_spikes, delta_T, tmax=2)
+plt.show()
+"""
 
 net = nt.BinaryWTANetwork(n_inputs=n_inputs, n_outputs=n_outputs,
-                            delta_T=delta_T, r_net=r_net, m_k=m_k, eta_v=1e0, eta_b=1e-0)
+                            delta_T=delta_T, r_net=r_net, m_k=m_k, eta_v=1e2, eta_b=1e5)
 
-fig = plt.figure(figsize=(3.5, 1.16), dpi=300)
-plt.show(block=False)
-# fig, axes = plt.subplots(2, 6)
-axes = pt.add_axes_as_grid(fig, 2, 6, m_xc=0.01, m_yc=0.01)
 
-imshows = []
-for i, ax in enumerate( list(axes.flatten()) ):
-    # disable legends
-    ax.set_yticks([])
-    ax.set_xticks([])
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
-
-    imshows.append(ax.imshow(ut.sigmoid(net._V[i].reshape((dim, dim))), vmin=0, vmax=1))
-fig.canvas.draw()
-fig.canvas.flush_events()
 
 # train
-pbar = tqdm(range(len(X_spikes)))
-for i in pbar:
+from plot import WeightPCAPlotter, WeightPlotter
+pca_plotter = WeightPCAPlotter(X, np.zeros(X.shape[0]), n_outputs, [0, 0], annotations=True)
+weights_plotter = WeightPlotter(ut.sigmoid(net._V).reshape((-1, dim, dim)))
+
+from collections import deque
+
+average_length_likelihood = 500
+
+pbar = tqdm(enumerate(X_spikes))
+for batch_index, sample_batch in pbar:
     # update figure here
-    net.step(X_spikes[i])
+    log_likelihoods = deque([])
+    for sample in sample_batch:
+        net.step(sample)
 
-    # update figures every percent
-    if not i % int(100 * (0.25 / delta_T)):
-        # reshape to 28x28 to plot
-        weights = net._V.reshape((-1, dim, dim))
-        for i in range(len(imshows)):
-            # pi_k_i = sigmoid(weight)
-            imshows[i].set_data(ut.sigmoid(weights[i]))
+        # log likelihood
+        Ak = np.sum(np.log(1+np.exp(net._V)), -1)
 
-        fig.canvas.draw()
-    pbar.set_description(f'<|V|> = {np.mean(np.abs(net._V)):.4f}, <|b|> = {np.mean(np.abs(net._b)):.4f}')
-    fig.canvas.flush_events()
+        pi = ut.sigmoid(net._V)
+        log_likelihoods.append(np.log(1.0/n_outputs) + np.log(np.sum(np.prod(sample * pi + (1-sample) * (1-pi), axis=-1))))
+
+        if len(log_likelihoods) > average_length_likelihood:
+            log_likelihoods.popleft()
+
+    weights = ut.sigmoid(net._V)
+
+    pca_plotter.update(weights)
+
+    weights_plotter.update(weights)
+
+    pbar.set_description(f'<sigma(V)> = {np.mean(weights):.4f}, <b> = {np.mean(net._b):.4f}, <L(y)> = {np.mean(log_likelihoods)}')
+
