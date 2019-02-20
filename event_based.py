@@ -3,6 +3,8 @@ import numpy as np
 # matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from matplotlib import animation
+import matplotlib.patches as mpatches
+from sklearn.decomposition import PCA
 import utility as ut
 import network as nt
 from tqdm import tqdm as tqdm
@@ -21,17 +23,19 @@ current_time = 0.0        # [s]
 
 # mnist
 labels = [0, 1]
-def init_mnist():
-    (x_train, y_train), (x_test, y_test) = ut.mnist.load_data()
-    selection = [y_test == label for label in labels]
+class mnist():
+    def __init__(self):
+        (x_train, y_train), (x_test, y_test) = ut.mnist.load_data()
+        self.selection = [y_test == label for label in labels]
 
-    minimum_length = min(np.sum(selection, axis=1))
-    selection = np.any([np.all((item, np.cumsum(item) < minimum_length), axis=0) for item in selection], axis=0)
-    X = x_test[selection]
-    Y = y_test[selection]
-    X = X.reshape((len(X), -1)) / 255.0
-    global mnist_px_samples
-    mnist_px_samples = (X > 0.5).astype(np.float32)
+        minimum_length = min(np.sum(self.selection, axis=1))
+        self.selection = np.any([np.all((item, np.cumsum(item) < minimum_length), axis=0) for item in self.selection], axis=0)
+        self.X = x_test[self.selection]
+        self.Y = y_test[self.selection]
+        self.X = self.X.reshape((len(self.X), -1)) / 255.0
+
+        global mnist_px_samples
+        mnist_px_samples = (self.X > 0.5).astype(np.float32)
 
 
 def get_input_at_time(t):
@@ -154,6 +158,33 @@ class EventBinaryWTANetwork():
 
         plt.show(block=False)
 
+    def init_pca_plot(self, mnist):
+        # set up figure for PCA
+            self._pca_fig, self._pca_ax = plt.subplots(1)
+            colors = ["C0", "C1", "C2", "C3"]
+            Y_color = np.empty(mnist.Y.shape, dtype="object")
+            for i, label in enumerate(labels):
+                Y_color[mnist.Y == label] = colors[i%len(colors)]
+            self._pca = PCA(n_components=2)
+            self._pca.fit(mnist.X)
+            X_pca = self._pca.transform(mnist.X)
+
+            self._pca_ax.set_xlabel("PC 1")
+            self._pca_ax.set_ylabel("PC 2")
+
+            self._pca_scatter_constant = self._pca_ax.scatter(
+                X_pca[:, 0], X_pca[:, 1], c=Y_color,alpha=0.5, marker="o", s=2)
+            self._pca_scatter_variable = self._pca_ax.scatter(
+                np.zeros(self._n_outputs), np.zeros(self._n_outputs),
+                c="black", marker="o", s=4)
+
+            self._pca_fig.legend(loc='upper center', bbox_to_anchor=(0.5, 1.0),
+                fancybox=True, ncol=1+len(labels),
+                handles=[mpatches.Patch(
+                    color=Y_color[i], label=labels[i]) \
+                    for i in range(len(labels))] + \
+                [mpatches.Patch(color="black", label="Weights")])
+
 
     def update_z_plot(self):
         dat = np.array(list(zip(net._t_hist, net._z_hist)))
@@ -166,6 +197,10 @@ class EventBinaryWTANetwork():
         weights = self._V.reshape((-1, 28, 28))
         for i in range(len(self._w_imshows)):
             self._w_imshows[i].set_data(ut.sigmoid(weights[i]))
+
+    def update_pca_plot(self):
+        weights_pca = self._pca.transform(ut.sigmoid(self._V))
+        self._pca_scatter_variable.set_offsets(weights_pca)
 
     def step(self):
         global current_time
@@ -234,6 +269,37 @@ class EventBinaryWTANetwork():
 
             # self.update_z_plot()
 
+    def init_animations(self):
+        # animate spike train
+        def anim_z(i):
+            try:
+                self.update_z_plot()
+            except:
+                pass
+        self._z_animation = animation.FuncAnimation(self._z_fig, anim_z,
+            init_func=None, frames=2, interval=200,
+            blit=False, repeat=True)
+
+        # animate weights
+        def anim_w(i):
+            try:
+                self.update_weight_plot()
+            except:
+                pass
+        self._w_animation = animation.FuncAnimation(self._w_fig, anim_w,
+            init_func=None, frames=2, interval=1500,
+            blit=False, repeat=True)
+
+        def anim_pca(i):
+            try:
+                self.update_pca_plot()
+            except:
+                pass
+        self._pca_animation = animation.FuncAnimation(self._pca_fig, anim_pca,
+            init_func=None, frames=2, interval=1500,
+            blit=False, repeat=True)
+
+
 def run_thread():
     thread = threading.Thread(target=net.update_steps)
     thread.daemon = True
@@ -247,37 +313,20 @@ r_net = 50.0 # 0.5
 m_k = 1.0/n_outputs
 
 if __name__ == '__main__':
-    init_mnist()
+    mnist = mnist()
     get_input_at_time(0)
     net = EventBinaryWTANetwork(n_inputs=n_inputs, n_outputs=n_outputs,
         delta_T=delta_T, r_net=r_net, m_k=m_k, eta_v=1e-2, eta_b=1e-0,
         history_duration=10)
 
-    plt.ioff()
+    # plt.ioff()
+    plt.ion()
     net.init_weight_plot()
     net.init_z_plot()
+    net.init_pca_plot(mnist)
+    net.init_animations()
 
-    # animate spike train
-    def anim_z(i):
-        try:
-            net.update_z_plot()
-        except:
-            pass
-    animation_z = animation.FuncAnimation(net._z_fig, anim_z,
-        init_func=None, frames=2, interval=200,
-        blit=False, repeat=True)
-
-    # animate weights
-    def anim_w(i):
-        try:
-            net.update_weight_plot()
-        except:
-            pass
-    animation_w = animation.FuncAnimation(net._w_fig, anim_w,
-        init_func=None, frames=2, interval=1000,
-        blit=False, repeat=True)
-
-    plt.show(block=False)
+    # plt.show() # dont do this, causes crashes on osx, use plt.ion() instead
 
     thread = run_thread()
 
