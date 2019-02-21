@@ -85,7 +85,15 @@ def plot_spiketrain(spiketrain_nd, delta_T, tmin = 0.0, tmax = None):
 class WeightPlotter():
     def __init__(self, weights):
         self._fig = plt.figure(figsize=(3.5, 1.16), dpi=300)
-        axes = add_axes_as_grid(self._fig, 2, 6, m_xc=0.01, m_yc=0.01)
+        i = 2
+        num_weights = len(weights)
+        while i < len(weights):
+            if num_weights%i == 0:
+                break
+            else: 
+                i += 1
+
+        axes = add_axes_as_grid(self._fig, i, int(num_weights/i), m_xc=0.01, m_yc=0.01)
 
         self._weight_shape = weights.shape[1:]
 
@@ -148,7 +156,7 @@ class WeightPCAPlotter():
         self._ax.set_ylabel("PC 2")
 
         self._scatter_constant = self._ax.scatter(X_pca[:, 0], X_pca[:, 1], c=Y_color,alpha=0.5, marker="o", s=2)
-        self._scatter_variable = self._ax.scatter(np.zeros(n_outputs), np.zeros(n_outputs), c="black", marker="o", s=4)
+        self._scatter_variable = self._ax.scatter(np.zeros(n_outputs), np.zeros(n_outputs), c="black", marker="o", s=20)
         import matplotlib.patches as mpatches
         self._fig.legend(loc='upper center', bbox_to_anchor=(0.5, 1.0), fancybox=True, ncol=1+len(labels), handles=[mpatches.Patch(color=Y_color[i], label=labels[i]) for i in range(len(labels))] + [mpatches.Patch(color="black", label="Weights")])
         plt.show(block=False)
@@ -203,7 +211,7 @@ class SpiketrainPlotter():
         self._fig, self._ax = plt.subplots(1)
 
         self._line = Line2D([], [], color='C0')
-        self._scatter = self._ax.scatter([], [])
+        self._scatter = self._ax.scatter([], [], marker="|")
         self._ax.set_xlabel("Time [s]")
         self._ax.set_ylabel("Unit")
         self._ax.set_ylim([-1, n+1])
