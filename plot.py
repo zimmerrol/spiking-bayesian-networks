@@ -253,7 +253,6 @@ class SpiketrainPlotter():
         scatter_data = np.c_[x, y]
 
         self._ax.set_xlim([x.min(), x.max()])
-        self._ax.set_ylim([y.min(), y.max()])
 
         self._scatter.set_offsets(scatter_data)
         self._fig.canvas.draw()
