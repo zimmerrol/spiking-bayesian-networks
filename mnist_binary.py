@@ -11,6 +11,7 @@ delta_T = 1e-3
 # mnist
 spiking_input = True
 labels = [2, 4]
+ratio = [1, 1]
 n_outputs = 12
 W, H = 24, 24
 n_inputs = W*H
@@ -23,8 +24,11 @@ m_k = 1.0/n_outputs
 selection = [y_test == label for label in labels]
 
 minimum_length = min(np.sum(selection, axis=1))
-selection = np.any([np.all((item, np.cumsum(item) < minimum_length), axis=0) for item in selection], axis=0)
+selection = np.any([np.all((item, np.cumsum(item) < minimum_length/ratio[i]), axis=0) for i,item in enumerate(selection)], axis=0)
 X = x_test[selection]
+Y = y_test[selection]
+for label in labels:
+	    print(sum(Y==label))
 
 X = X[:, (28-H)//2:-(28-H)//2, (28-W)//2:-(28-W)//2]
 
