@@ -170,6 +170,8 @@ class CurvePlotter():
         self._ax.set_xlabel(x_label)
         self._ax.set_ylabel(y_label)
 
+        self._std_area = self._ax.fill_between([], [])
+
         plt.show(block=False)
 
     def update(self, x, y=None):
@@ -180,9 +182,71 @@ class CurvePlotter():
         y = np.array(y)
         x = np.array(x)
 
+        if len(y.shape) > 1:
+            y_std = y[:, 1]
+            y = y[:, 0]
+
         self._ax.set_xlim([x.min(), x.max()])
         self._ax.set_ylim([y.min(), y.max()])
 
+        self._std_area.remove()
+        self._std_area = self._ax.fill_between(x, y-y_std, y+y_std, facecolor='C0', alpha=0.5)
+
         self._line.set_data(x, y)
+        self._fig.canvas.draw()
+        self._fig.canvas.flush_events()
+
+from collections import deque
+class SpiketrainPlotter():
+    def __init__(self, n, max_steps, spiketrains=None, spiketimes=None):
+        # set up figure for PCA
+        self._fig, self._ax = plt.subplots(1)
+
+        self._line = Line2D([], [], color='C0')
+        self._scatter = self._ax.scatter([], [])
+        self._ax.set_xlabel("Time [s]")
+        self._ax.set_ylabel("Unit")
+        self._ax.set_ylim([-1, n+1])
+        self._ax.set_xlim([-max_steps, 0])
+
+        self._max_steps = max_steps
+
+        self._spiketrains = deque([])
+        if spiketrains is not None:
+            for sample in spiketrains:
+                self._spiketrains.append(sample)
+
+        self._spiketimes = deque()
+        if spiketimes is not None:
+            for sample in spiketimes:
+                self._spiketimes.append(sample)
+
+        plt.show(block=False)
+
+    def update(self, new_spiketrains, new_spiketimes):
+        for sample in new_spiketrains:
+            self._spiketrains.append(sample)
+        for time in new_spiketimes:
+            self._spiketimes.append(time)
+
+        while len(self._spiketrains) > self._max_steps:
+            self._spiketrains.popleft()
+            self._spiketimes.popleft()
+
+        scatter_data = np.nonzero(np.isclose(self._spiketrains, 1.0))
+        x = scatter_data[0]
+        y = scatter_data[1]
+
+        x = x.reshape(-1)
+        y = y.reshape(-1)
+
+        x = np.array([self._spiketimes[i] for i in x])
+
+        scatter_data = np.c_[x, y]
+
+        self._ax.set_xlim([x.min(), x.max()])
+        self._ax.set_ylim([y.min(), y.max()])
+
+        self._scatter.set_offsets(scatter_data)
         self._fig.canvas.draw()
         self._fig.canvas.flush_events()
