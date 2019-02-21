@@ -121,7 +121,7 @@ class WeightPCAPlotter():
     def __init__(self, X, Y, n_outputs, labels, annotations=False):
         # set up figure for PCA
         self._fig, self._ax = plt.subplots(1)
-        colors = ["C0", "C1", "C2", "C3"]
+        colors = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9"]
         Y_color = np.empty(Y.shape, dtype="object")
         for i, label in enumerate(labels):
             Y_color[Y == label] = colors[i%len(colors)]
