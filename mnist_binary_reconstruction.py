@@ -1,85 +1,52 @@
+"""
+Evaluates the reconstruction quality for varying number of output neurons.
+
+MIT License
+
+Copyright (c) 2019 Roland Zimmermann, Laurenz Hemmen
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
 import numpy as np
 import utility as ut
 import network as nt
 from tqdm import tqdm as tqdm
 from collections import deque
-from  copy import deepcopy
+from copy import deepcopy
+from data_generator import DataGenerator
 
 delta_T = 1e-3
 
-# mnist
+# parameters
 spiking_input = False
-labels = [0, 3]
+labels = [0, 1, 2, 3]
 n_outputs = 12
-W, H = 28, 28
+W, H = 24, 24
+r_net = 50.0
+t_max = 1000
+
 n_inputs = W*H
-r_net = 50.0 # 50.0 # 0.5
 m_k = 1.0/n_outputs
 
 # load data
-(x_train, y_train), (x_test, y_test) = ut.mnist.load_data()
-selection = [y_test == label for label in labels]
-
-minimum_length = min(np.sum(selection, axis=1))
-selection = np.any([np.all((item, np.cumsum(item) < minimum_length), axis=0) for item in selection], axis=0)
-X = x_test[selection]
-
-if H < 28 and W < 28:
-    X = X[:, (28 - H) // 2:-(28 - H) // 2, (28 - W) // 2:-(28 - W) // 2]
-
-Y = y_test[selection]
-X = X.reshape((len(X), -1)) / 255.0
-X = (X > 0.5).astype(np.float32)
-X_frequencies = X * 70.0 + 20.0
-
-
-class DataGenerator():
-    def __init__(self, X, length, delta_T, t_image, spiking=False):
-        self._X = X
-        self._indices = np.random.uniform(0, len(X), size=length).astype(np.int32)
-        self._delta_T = delta_T
-        self._t_image = t_image
-        self._spiking = spiking
-        self._cache = SpikeTrainCache(delta_T)
-
-    def __getitem__(self, time):
-        if time in self._cache:
-            return self._cache[time]
-
-        image_index = self._indices[int(time / self._t_image)]
-
-        if self._spiking:
-            rate = self._X[image_index]
-            y = (np.random.uniform(0, 1, self._X.shape[1]) < self._delta_T * rate).astype(np.float32)
-        else:
-            y = self._X[image_index]
-
-        self._cache[time] = y
-
-        return y
-
-
-class SpikeTrainCache():
-    def __init__(self, delta_T):
-        self._delta_T = delta_T
-        self._trace = {}
-
-    def _bin_time(self, time):
-        return int(time / self._delta_T)
-
-    def __contains__(self, time):
-        return self._bin_time(time) in self._trace
-
-    def __getitem__(self, time):
-        return self._trace[self._bin_time(time)]
-
-    def __setitem__(self, time, value):
-        self._trace[self._bin_time(time)] = value
-
-
-net = nt.EventBasedBinaryWTANetwork(n_inputs=n_inputs, n_outputs=n_outputs,
-                            r_net=r_net, m_k=m_k, eta_v=1e-2, eta_b=1e+0, max_trace_length=1000,)
-                            # tau=1e-2, delta_T=1e-3)
+x, y = ut.load_mnist(h=H, w=W, labels=labels, train=False, frequencies=spiking_input)
 
 
 def estimate_likelihood(estimation_duration=10.0):
@@ -96,7 +63,6 @@ def estimate_likelihood(estimation_duration=10.0):
         pbar.update(0)
 
         # log likelihood
-
         y = estimation_net._trace[-1][1].reshape((1, -1))
 
         pi = ut.sigmoid(net._V)
@@ -104,21 +70,6 @@ def estimate_likelihood(estimation_duration=10.0):
             np.log(1.0 / n_outputs) + np.log(np.sum(np.prod(y * pi + (1 - y) * (1 - pi), axis=-1))))
 
     return np.mean(log_likelihoods), np.std(log_likelihoods)
-
-
-likelihoods = []
-T_max = 5000
-data_generator = DataGenerator(X_frequencies if spiking_input else X, T_max*10, t_image=0.250, delta_T=delta_T, spiking=spiking_input)
-pbar = tqdm(total=T_max, unit='Time [s]')
-while net._current_time < T_max:
-    z = net.step(lambda t: data_generator[t])
-
-    pbar.n = int(net._current_time * 1000) / 1000
-    pbar.update(0)
-
-    likelihood = likelihoods[-1][0] if len(likelihoods) > 0 else np.nan
-    pbar.set_description(
-        f'<sigma(V)> = {np.mean(ut.sigmoid(net._V)):.4f}, <b> = {np.mean(net._b):.4f}, <L(y)> = {likelihood:.4f}')
 
 
 def reconstruct(net, input, t_image=0.250):
@@ -130,27 +81,81 @@ def reconstruct(net, input, t_image=0.250):
     while estimation_net._current_time < t_image:
         z = estimation_net.step(lambda t: input, update_weights=False)
 
-        reconstruction += (z.reshape((-1, 1)) * net._V).sum(0)
+        reconstruction += z.dot(ut.sigmoid(net._V))
 
     return reconstruction
 
 
-oi = [0, 1, 8, 9]
-originals, reconstructions = [], []
-for i in range(4):
-    originals.append(X[oi[i]])
-    reconstructions.append(reconstruct(net, X[oi[i]]))
+def reconstruction_likelihood(net, t_image = 0.250):
+    spikes = np.zeros((len(x), n_outputs))
+
+    pi = ut.sigmoid(net._V)
+
+    likelihoods =[]
+
+    estimation_net = deepcopy(net)
+    estimation_net._current_time = 0
+    estimation_net._trace = deque([])
+
+    pbar = tqdm(total=len(x) * t_image, unit='Time [s]', position=1, desc="Reconstruction")
+    while estimation_net._current_time < len(x) * t_image:
+        pbar.n = int(estimation_net._current_time * 1000) / 1000
+        pbar.update(0)
+
+        z = estimation_net.step(lambda t: x[int(min(t, (len(x)-1) * t_image) / t_image)], update_weights=False)
+
+        sample = x[int(min(estimation_net._current_time, (len(x)-1) * t_image) / t_image)]
+        pi = ut.sigmoid(np.dot(z.reshape((1, -1)), net._V))
+        likelihoods.append(np.sum(np.log(sample * pi + (1 - sample) * (1 - pi)), axis=-1))
+
+    pbar.close()
+
+    return np.mean(likelihoods)
+
+
+def reconstruction_l2_loss(net, t_image=0.250):
+    estimation_net = deepcopy(net)
+    estimation_net._current_time = 0
+    estimation_net._trace = deque([])
+
+    spikes = np.zeros((len(x), n_outputs))
+    pbar = tqdm(total=len(x) * t_image, unit='Time [s]', position=1, desc="Reconstruction")
+    while estimation_net._current_time < len(x) * t_image:
+        pbar.n = int(estimation_net._current_time * 1000) / 1000
+        pbar.update(0)
+
+        z = estimation_net.step(lambda t: x[int(min(t, (len(x) - 1) * t_image) / t_image)], update_weights=False)
+        spikes[min(len(x)-1, int(estimation_net._current_time / t_image))] += z.flatten()
+
+    reconstructions = np.dot(spikes, ut.sigmoid(estimation_net._V)) / np.sum(spikes, axis=-1).reshape(-1, 1)
+    difference = np.mean((reconstructions - x) ** 2)
+
+    return difference
+
+
+losses = {}
+for n_outputs in tqdm(range(2, 24)):
+    m_k = 1.0 / n_outputs
+    net = nt.EventBasedBinaryWTANetwork(n_inputs=n_inputs, n_outputs=n_outputs,
+                                        r_net=r_net, m_k=m_k, eta_v=1e-2, eta_b=1e+0, max_trace_length=1000)
+
+    data_generator = DataGenerator(x, t_max*10, t_image=0.250, delta_T=delta_T, spiking=spiking_input)
+    pbar = tqdm(total=t_max, unit='Time [s]')
+    while net._current_time < t_max:
+        z = net.step(lambda t: data_generator[t])
+
+        pbar.n = int(net._current_time * 1000) / 1000
+        pbar.update(0)
+        pbar.set_description(f'<sigma(V)> = {np.mean(ut.sigmoid(net._V)):.4f}, <b> = {np.mean(net._b):.4f}')
+
+    losses[n_outputs] = reconstruction_likelihood(net)
+    # losses[n_outputs] = reconstruction_l2_loss(net)
+
+losses = np.array([[key, losses[key]] for key in losses])
+
+np.save("reconstruction_likelihood_loss.npy", losses)
+# np.save("reconstruction_l2_loss.npy", losses)
 
 from matplotlib import pyplot as plt
-plt.gray()
-fig, ax = plt.subplots(4, 2)
-fig.set_size_inches((2*2+1*0.1, 4*2 + 3*0.1))
-plt.tight_layout()
-for i in range(len(originals)):
-    ax[i, 0].imshow(1.0 - originals[i].reshape((W, H)))
-    ax[i, 1].imshow(1.0 - reconstructions[i].reshape((W, H)))
-    ax[i, 0].set_axis_off()
-    ax[i, 1].set_axis_off()
-plt.savefig("figures/reconstruction.pdf", dpi=300)
+plt.plot(losses[:, 0], losses[:, 1])
 plt.show()
-pbar.close()
