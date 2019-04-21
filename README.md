@@ -11,6 +11,6 @@ The code was written and the experiments conducted during a one week lasting sem
 * Network can reconstruct images is was not trained on
 
 When images of digits between zero and five with the same ratio are shown to a network with 12 output neurons, for each class two neurons that are class-receptive arise. The neurons slowly learn to react to one of the input types.
-![Visualization of the learning process](weights.gif)
+![Visualization of the learning process](https://github.com/FlashTek/spiking-bayesian-networks/edit/master/weights.gif)
 
-![Visualization of the learning process](weights_pca.gif)
+![Visualization of the learning process](https://github.com/FlashTek/spiking-bayesian-networks/edit/master/weights_pca.gif)
