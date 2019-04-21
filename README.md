@@ -5,9 +5,9 @@ Contains code to runs different experiments on the proposed model and also on a 
 The code was written and the experiments conducted during a one week lasting seminar at the Max-Planck Institute for Dynamics and Self-Organization in 2019.
 
 # Key insights
-* `eta_b` has to be sufficiently large, otherwise homeostasis is not stronk enough to keep `r` similar for all output neurons
-* `A_k(V)` contributes exponentially `b_k` linearly, it is not always factor ten between `eta_V` and `eta_b`
-*  Too few neurons for causes lead to learning of superposition states
+* `eta_b` has to be sufficiently large, otherwise homeostasis is not strong enough to keep `r` similar for all output neurons
+* Even though the paper claims that a factor of 10 between the learning rates is sufficient, we find out that `A_k(V)` contributes exponentially while `b_k` contributes only linearly. Therefore, a factor of ten between `eta_V` and `eta_b` is not always optimal.
+* Too few neurons for causes lead to learning of superposition states
 * Network can reconstruct images is was not trained on
 
 When images of digits between zero and five with the same ratio are shown to a network with 12 output neurons, for each class two neurons that are class-receptive arise. The neurons slowly learn to react to one of the input types.
